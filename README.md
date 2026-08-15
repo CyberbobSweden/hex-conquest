@@ -9,7 +9,7 @@ Grunda städer, träna nybyggare och soldater, och erövra dina motståndares ku
 
 ## Köra lokalt
 
-Ladda bara ner `index.html` och öppna den i valfri webbläsare — inget bygge eller npm behövs.
+Ladda ner `index.html` **och** `music.mp3` (måste ligga i samma mapp) och öppna `index.html` i valfri webbläsare — inget bygge eller npm behövs.
 
 ## Publicera med GitHub Pages
 

@@ -3,858 +3,1038 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Hex Conquest</title>
+<title>Hex Conquest — Trollkarlens Valv</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
-
-:root{
-  --ink:#eae3d0;
-  --panel:#1c1712;
-  --panel2:#241d16;
-  --gold:#f2c34d;
-  --green-good:#7ec850;
-  --red-bad:#e05a4e;
-  --border:#5a4a34;
-  --accent:#f2c34d;
-}
-*{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
-html,body{margin:0;padding:0;height:100%;background:#0c0a08;color:var(--ink);
-  font-family:'VT323',monospace; font-size:20px; overflow:hidden;}
+:root{ --ink:#eae3d0; --panel:#1c1712; --gold:#f2c34d; --good:#7ec850; --bad:#e05a4e; --border:#5a4a34; }
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;}
+html,body{margin:0;padding:0;height:100%;background:#050506;color:var(--ink);font-family:'VT323',monospace;font-size:20px;overflow:hidden;}
 #app{position:fixed;inset:0;display:flex;flex-direction:column;}
-.pixel{image-rendering:pixelated;}
-h1,h2,h3{font-family:'Press Start 2P',monospace; letter-spacing:1px;}
+h1,h2,h3{font-family:'Press Start 2P',monospace;letter-spacing:1px;}
 
-/* ---------- Setup screen ---------- */
-#setupScreen{
-  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  background:
-    radial-gradient(circle at 30% 20%, #1e3a2e 0%, #0c0a08 60%);
-  padding:16px; overflow-y:auto;
-}
-#setupScreen h1{font-size:20px; color:var(--gold); text-shadow:3px 3px 0 #000; margin-bottom:4px; text-align:center;}
-#setupScreen .sub{font-size:16px; color:#a89a7c; margin-bottom:18px; text-align:center;}
-.panel-box{
-  background:var(--panel); border:4px solid var(--border); box-shadow:0 0 0 2px #000, 6px 6px 0 rgba(0,0,0,.5);
-  padding:16px; width:min(420px,92vw);
-}
-.field-label{font-size:15px; color:#a89a7c; margin-bottom:4px; text-transform:uppercase; letter-spacing:1px;}
-.seed-row{display:flex; gap:8px; margin-bottom:14px;}
-.seed-row input{flex:1; background:#0c0a08; border:3px solid var(--border); color:var(--ink); padding:8px; font-family:'VT323'; font-size:18px;}
-.btn{
-  font-family:'Press Start 2P',monospace; font-size:11px; color:var(--ink);
-  background:#3a4a2e; border:3px solid #000; box-shadow:3px 3px 0 #000;
-  padding:10px 12px; cursor:pointer; text-align:center; line-height:1.4;
-}
-.btn:active{transform:translate(2px,2px); box-shadow:1px 1px 0 #000;}
-.btn.small{font-size:10px; padding:8px;}
+#startScreen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 20%, #2a1f3a 0%, #050506 65%); padding:16px; overflow-y:auto;}
+#startScreen h1{font-size:20px;color:var(--gold);text-shadow:3px 3px 0 #000;text-align:center;margin-bottom:2px;}
+#startScreen .sub{font-size:16px;color:#a89a7c;margin-bottom:18px;text-align:center;}
+.panel-box{background:var(--panel);border:4px solid var(--border);box-shadow:0 0 0 2px #000,6px 6px 0 rgba(0,0,0,.5);padding:16px;width:min(420px,92vw);margin-bottom:14px;}
+.field-label{font-size:15px;color:#a89a7c;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;}
+.seed-row{display:flex;gap:8px;margin-bottom:14px;}
+.seed-row input{flex:1;background:#0c0a08;border:3px solid var(--border);color:var(--ink);padding:8px;font-family:'VT323';font-size:18px;}
+.btn{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--ink);background:#3a2e4a;border:3px solid #000;box-shadow:3px 3px 0 #000;padding:10px 12px;cursor:pointer;text-align:center;line-height:1.4;}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #000;}
+.btn:disabled{opacity:.35;cursor:default;}
+.btn.small{font-size:10px;padding:8px;}
 .btn.gold{background:#6b4e1e;}
-.btn.green{background:#2e5a2e;}
-.btn.red{background:#5a2e2e;}
-.btn.start{width:100%; background:#2e5a2e; font-size:14px; padding:14px; margin-top:8px;}
-.btn:disabled{opacity:.4; cursor:default;}
+.btn.start{width:100%;background:#3a5e3a;font-size:14px;padding:14px;margin-top:6px;}
+.diffRow{display:flex;gap:6px;margin-bottom:14px;}
+.diffRow .btn{flex:1;background:#241d16;}
+.diffRow .btn.active{background:#3a5e3a;}
+.helpText{font-size:15px;color:#c8bda2;line-height:1.6;margin-top:10px;}
+.helpText b{color:var(--gold);}
 
-.kingdom-row{display:flex; align-items:center; gap:8px; margin-bottom:8px; background:#14100c; border:2px solid var(--border); padding:6px;}
-.swatch{width:22px;height:22px; border:2px solid #000; flex-shrink:0;}
-.kingdom-row select{flex:1; background:#0c0a08; color:var(--ink); border:2px solid var(--border); font-family:'VT323'; font-size:16px; padding:4px;}
-.kingdom-row .xbtn{background:#5a2e2e; border:2px solid #000; color:var(--ink); width:26px; height:26px; cursor:pointer; font-family:'Press Start 2P'; font-size:10px;}
+#gameScreen{flex:1;display:none;flex-direction:column;min-height:0;}
+#topbar{display:flex;align-items:center;gap:5px;padding:6px 7px;background:var(--panel);border-bottom:4px solid var(--border);flex-wrap:wrap;z-index:5;}
+#hudInfo{font-family:'Press Start 2P';font-size:9px;flex:1;min-width:110px;line-height:1.7;}
+.topbtn{font-family:'Press Start 2P';font-size:9px;padding:7px 7px;background:#2e2a22;border:2px solid #000;box-shadow:2px 2px 0 #000;color:var(--ink);cursor:pointer;}
+.topbtn.active{background:#5a3e8a;}
+#canvasWrap{flex:1;position:relative;overflow:hidden;background:#050506;}
+canvas{display:block;touch-action:none;image-rendering:pixelated;}
+#toast{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-family:'Press Start 2P';font-size:10px;
+  background:rgba(0,0,0,.8);border:2px solid var(--gold);color:var(--gold);padding:8px 14px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:6;text-align:center;}
+#toast.show{opacity:1;}
+#help{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:13px;color:#c8bda2;
+  background:rgba(0,0,0,.6);padding:5px 12px;border:1px solid var(--border);pointer-events:none;z-index:6;text-align:center;max-width:92vw;}
+#replayBanner{position:absolute;top:8px;left:8px;font-family:'Press Start 2P';font-size:9px;color:var(--bad);
+  background:rgba(0,0,0,.8);border:2px solid var(--bad);padding:6px 10px;display:none;z-index:6;}
 
-/* ---------- Game screen ---------- */
-#gameScreen{flex:1; display:none; flex-direction:column; min-height:0;}
-#topbar{
-  display:flex; align-items:center; gap:6px; padding:8px 8px;
-  background:var(--panel); border-bottom:4px solid var(--border); flex-wrap:wrap;
-}
-#roundInfo{font-family:'Press Start 2P'; font-size:10px; flex:1; min-width:140px; line-height:1.6;}
-#roundInfo .turnDot{display:inline-block;width:10px;height:10px;border:2px solid #000;vertical-align:middle;margin-right:4px;}
-.topbtn{font-family:'Press Start 2P'; font-size:9px; padding:8px 8px; background:#2e2a22; border:2px solid #000; box-shadow:2px 2px 0 #000; color:var(--ink); cursor:pointer;}
-.topbtn.end{background:#2e5a2e;}
-.topbtn:disabled{opacity:.35;}
-
-#mapWrap{flex:1; overflow:auto; background:#0a1a2a; -webkit-overflow-scrolling:touch; position:relative; touch-action:pan-x pan-y;}
-#mapContainer{position:relative; margin:20px;}
-
-.hex{
-  position:absolute; display:flex; align-items:center; justify-content:center;
-  clip-path:polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%);
-  cursor:pointer; transition:filter .1s;
-}
-.hex .icon{position:absolute; font-size:16px; text-shadow:1px 1px 0 #000; pointer-events:none;}
-.hex .unit{position:absolute; bottom:2px; font-size:15px; text-shadow:1px 1px 0 #000; pointer-events:none;}
-.hex.selected{outline:3px solid #fff; outline-offset:-3px; z-index:5;}
-.hex.valid::after{content:''; position:absolute; inset:0; background:rgba(255,255,255,.35); clip-path:inherit;}
-.hex.city{box-shadow:inset 0 0 0 3px #fff;}
-
-/* ---------- Action panel ---------- */
-#actionPanel{
-  background:var(--panel2); border-top:4px solid var(--border); padding:10px; min-height:64px;
-  display:flex; flex-direction:column; gap:8px;
-}
-#panelTitle{font-family:'Press Start 2P'; font-size:11px; color:var(--gold);}
-#panelDesc{font-size:16px; color:#c8bda2; margin-top:-4px;}
-#panelButtons{display:flex; flex-wrap:wrap; gap:6px;}
-.actbtn{font-family:'Press Start 2P'; font-size:9px; background:#3a3020; border:2px solid #000; box-shadow:2px 2px 0 #000; color:var(--ink); padding:9px 8px; cursor:pointer; text-align:left; line-height:1.5;}
-.actbtn:disabled{opacity:.35;}
-.actbtn small{display:block; color:#a89a7c; font-size:8px; margin-top:2px;}
-
-/* ---------- Modal ---------- */
-.modal{position:fixed; inset:0; background:rgba(0,0,0,.75); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px;}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;}
 .modal.hidden{display:none;}
-.modal-box{background:var(--panel); border:4px solid var(--border); box-shadow:0 0 0 2px #000; padding:18px; width:min(380px,94vw); max-height:80vh; overflow-y:auto;}
-.modal-box h3{color:var(--gold); font-size:13px; margin-top:0;}
-.modal-box .row{display:flex; justify-content:space-between; font-size:17px; padding:3px 0; border-bottom:1px dashed #3a3020;}
-.modal-box .row.total{color:var(--gold); font-weight:bold; border-bottom:none; margin-top:6px;}
-
-#endModal .modal-box{text-align:center;}
-#endModal h2{font-size:16px; margin-bottom:6px;}
-#endModal p{font-size:18px; color:#c8bda2;}
+.modal-box{background:var(--panel);border:4px solid var(--border);box-shadow:0 0 0 2px #000;padding:20px;width:min(380px,94vw);text-align:center;}
+.modal-box h2{font-size:16px;margin-bottom:8px;}
+.modal-box p{font-size:18px;color:#c8bda2;margin-bottom:14px;}
+.modal-box textarea{width:100%;background:#0c0a08;color:var(--good);border:2px solid var(--border);font-family:monospace;font-size:12px;padding:6px;margin-bottom:10px;height:70px;resize:none;}
+.btnRow{display:flex;gap:8px;}
+.btnRow .btn{flex:1;}
 </style>
 </head>
 <body>
 <div id="app">
 
-  <!-- ============ SETUP SCREEN ============ -->
-  <div id="setupScreen">
+  <div id="startScreen">
     <h1>⚔ HEX CONQUEST ⚔</h1>
-    <div class="sub">Erövra världen, ett hexfält i taget</div>
+    <div class="sub">Trollkarlens Valv — samla diamanter, undvik monster</div>
     <div class="panel-box">
-      <div class="field-label">Kartfrö (seed)</div>
+      <div class="field-label">Frö (seed)</div>
       <div class="seed-row">
         <input id="seedInput" type="text" value="">
-        <button class="btn gold small" onclick="randomSeed()">🎲 Slump</button>
+        <button class="btn gold small" onclick="randomSeed()">🎲</button>
       </div>
-      <div class="field-label">Riken</div>
-      <div id="kingdomList"></div>
-      <button class="btn small" style="width:100%; margin-top:4px;" onclick="addKingdom()">+ Lägg till rike</button>
-      <button class="btn start" onclick="startGame()">▶ Starta spelet</button>
+      <div class="field-label">Svårighet</div>
+      <div class="diffRow" id="diffRow"></div>
+      <button class="btn start" onclick="startGame()">▶ Starta äventyret</button>
+      <div class="helpText">
+        <b>Samma frö = samma värld.</b> Dela fröet med en kompis för att spela exakt samma karta som du.<br><br>
+        👆 Tryck där du vill gå. 🪨 Gå in i en sten = knuffa den (även på monster = krossar dem!).<br>
+        ⚡ Tryck på ett monster intill dig = attackera det (kräver laddning).<br>
+        🌀 Fasa: tryck knappen, peka sen rakt genom en vägg i samma rad/kolumn — du byter plats med det som finns bakom den.<br>
+        🔵 Portalen tar dig mellan de två sammanlänkade grottorna.<br>
+        ✋ Dra på skärmen för att titta runt.<br>
+        🔊 Musik & ljud sätts på automatiskt — tryck högtalarikonen för att stänga av.
+      </div>
+    </div>
+    <div class="panel-box">
+      <div class="field-label">👀 Titta på någon annans repris</div>
+      <div class="seed-row">
+        <input id="replayInput" type="text" placeholder="Klistra in repris-kod...">
+        <button class="btn small" onclick="startReplay(document.getElementById('replayInput').value)">▶</button>
+      </div>
     </div>
   </div>
 
-  <!-- ============ GAME SCREEN ============ -->
   <div id="gameScreen">
     <div id="topbar">
-      <div id="roundInfo"></div>
+      <div id="hudInfo"></div>
+      <button class="topbtn" id="phaseBtn" onclick="uiTogglePhase()">🌀(0)</button>
+      <button class="topbtn" onclick="uiShowReplay()">🎬</button>
+      <button class="topbtn" onclick="uiRestart()">↺</button>
+      <button class="topbtn" id="muteBtn" onclick="toggleMute()">🔊</button>
       <button class="topbtn" onclick="backToMenu()">Meny</button>
-      <button class="topbtn" id="undoBtn" onclick="undo()">↶ Ångra</button>
-      <button class="topbtn" onclick="showDetails()">Detaljer</button>
-      <button class="topbtn end" id="endTurnBtn" onclick="endHumanTurn()">Avsluta drag</button>
     </div>
-    <div id="mapWrap"><div id="mapContainer"></div></div>
-    <div id="actionPanel">
-      <div id="panelTitle">Välkommen</div>
-      <div id="panelDesc">Tryck på en av dina enheter eller städer för att agera.</div>
-      <div id="panelButtons"></div>
+    <div id="canvasWrap">
+      <canvas id="cv"></canvas>
+      <div id="toast"></div>
+      <div id="help"></div>
+      <div id="replayBanner">🔴 REPRIS</div>
+    </div>
+  </div>
+  <audio id="bgMusic" loop preload="auto">
+    <source src="music.mp3" type="audio/mpeg">
+  </audio>
+
+  <div class="modal hidden" id="deadModal">
+    <div class="modal-box">
+      <h2 style="color:var(--bad)">💀 DU FÖRGICKS</h2>
+      <p id="deadText">Ett monster tog dig...</p>
+      <button class="btn start" onclick="uiRestart()">↺ Försök igen</button>
     </div>
   </div>
 
-  <!-- Details modal -->
-  <div class="modal hidden" id="detailsModal">
+  <div class="modal hidden" id="winModal">
     <div class="modal-box">
-      <h3>💰 Ekonomi</h3>
-      <div id="detailsBody"></div>
-      <button class="btn small" style="width:100%; margin-top:12px;" onclick="closeModal('detailsModal')">Stäng</button>
+      <h2 style="color:var(--good)">🏆 NIVÅ KLARAD!</h2>
+      <p id="winText"></p>
+      <button class="btn start" onclick="uiNextLevel()">▶ Nästa nivå</button>
     </div>
   </div>
 
-  <!-- End game modal -->
-  <div class="modal hidden" id="endModal">
+  <div class="modal hidden" id="replayModal">
     <div class="modal-box">
-      <h2 id="endTitle"></h2>
-      <p id="endText"></p>
-      <button class="btn start" onclick="backToMenu()">Till menyn</button>
+      <h2 style="color:var(--gold)">🎬 DIN REPRIS-KOD</h2>
+      <p>Kopiera koden och skicka till en kompis — de klistrar in den på startskärmen för att titta på ditt spel.</p>
+      <textarea id="replayCodeBox" readonly></textarea>
+      <div class="btnRow">
+        <button class="btn small" onclick="copyReplayCode()">📋 Kopiera</button>
+        <button class="btn small" onclick="closeModal('replayModal')">Stäng</button>
+      </div>
     </div>
   </div>
+
 </div>
 
 <script>
-/* ================== CONSTANTS ================== */
-const COLORS = ['#3b82f6','#ef4444','#f97316','#a855f7'];
-const NAMES  = ['Blå','Röd','Orange','Lila'];
-const T = {WATER:0, GRASS:1, FOREST:2, MOUNTAIN:3};
-const TERRAIN_STYLE = {
-  [T.WATER]:  {bg:'#1b4965', icon:''},
-  [T.GRASS]:  {bg:'#4a7c3f', icon:''},
-  [T.FOREST]: {bg:'#2f5d34', icon:'🌲'},
-  [T.MOUNTAIN]:{bg:'#6b6259', icon:'⛰️'},
+/* ================= CONFIG ================= */
+const TS = 40;
+const STEP_TIME = 150;
+const MONSTER_INTERVAL = 550;
+const MONSTER_STEP_TIME = 340;
+const RES_SCALE = 2; // low-res render then upscale for chunky retro look
+
+const DIFFICULTIES = {
+  calm:   {label:'Lugn',    monsterMul:0.5, diamondMul:0.8, phaseCharges:4, zapCharges:5},
+  normal: {label:'Normal',  monsterMul:1.0, diamondMul:1.0, phaseCharges:2, zapCharges:3},
+  intense:{label:'Intensiv',monsterMul:1.7, diamondMul:1.25, phaseCharges:1, zapCharges:2},
 };
-const TILE_INCOME = {[T.GRASS]:1, [T.FOREST]:2, [T.MOUNTAIN]:0, [T.WATER]:0};
-const UNIT_DEF = {
-  settler:  {cost:20, upkeep:1, icon:'👤', label:'Nybyggare', str:0},
-  soldier1: {cost:40, upkeep:1, icon:'🗡️', label:'Soldat I', str:1},
-  soldier2: {cost:75, upkeep:2, icon:'⚔️', label:'Soldat II', str:2},
-  soldier3: {cost:120,upkeep:3, icon:'🛡️', label:'Soldat III', str:3},
-};
-const CITY_BASE_INCOME = 5;
-const COLS = 7, ROWS = 9;
-const HEX_W = 46;
-const HEX_H = HEX_W * 0.8660254;
+let difficulty = 'normal';
 
-/* odd-q offset neighbor table */
-const ODDQ_DIR = [
-  [[1,0],[1,-1],[0,-1],[-1,-1],[-1,0],[0,1]],   // even col
-  [[1,1],[1,0],[0,-1],[-1,0],[-1,1],[0,1]],     // odd col
-];
-
-/* ================== RNG ================== */
-function mulberry32(a){
-  return function(){
-    a|=0; a=a+0x6D2B79F5|0;
-    let t=Math.imul(a^a>>>15,1|a);
-    t=t+Math.imul(t^t>>>7,61|t)^t;
-    return ((t^t>>>14)>>>0)/4294967296;
-  };
-}
-function seededRandom(str){
-  let h=2166136261;
-  for(let i=0;i<str.length;i++){h^=str.charCodeAt(i); h=Math.imul(h,16777619);}
-  return mulberry32(h>>>0);
-}
-function randomSeed(){
-  const chars='abcdefghjkmnpqrstuvwxyz23456789';
-  let s='';
-  for(let i=0;i<5;i++) s+=chars[Math.floor(Math.random()*chars.length)];
-  document.getElementById('seedInput').value=s;
-}
-
-/* ================== SETUP STATE ================== */
-let kingdomsConfig = [
-  {color:COLORS[0], name:NAMES[0], type:'human', difficulty:'medium'},
-  {color:COLORS[1], name:NAMES[1], type:'cpu', difficulty:'medium'},
-];
-function renderSetupRows(){
-  const list = document.getElementById('kingdomList');
-  list.innerHTML='';
-  kingdomsConfig.forEach((k,i)=>{
-    const row=document.createElement('div');
-    row.className='kingdom-row';
-    row.innerHTML = `
-      <div class="swatch" style="background:${k.color}"></div>
-      <select onchange="setKingdomType(${i}, this.value)">
-        <option value="human" ${k.type==='human'?'selected':''}>Människa</option>
-        <option value="cpu" ${k.type==='cpu'?'selected':''}>CPU</option>
-      </select>
-      ${k.type==='cpu' ? `<select onchange="setKingdomDiff(${i}, this.value)">
-          <option value="easy" ${k.difficulty==='easy'?'selected':''}>Lätt</option>
-          <option value="medium" ${k.difficulty==='medium'?'selected':''}>Medel</option>
-          <option value="hard" ${k.difficulty==='hard'?'selected':''}>Svår</option>
-        </select>` : `<div style="flex:1"></div>`}
-      ${kingdomsConfig.length>2 ? `<button class="xbtn" onclick="removeKingdom(${i})">X</button>` : ''}
-    `;
-    list.appendChild(row);
-  });
-}
-function setKingdomType(i,v){ kingdomsConfig[i].type=v; renderSetupRows(); }
-function setKingdomDiff(i,v){ kingdomsConfig[i].difficulty=v; }
-function addKingdom(){
-  if(kingdomsConfig.length>=4) return;
-  const i=kingdomsConfig.length;
-  kingdomsConfig.push({color:COLORS[i], name:NAMES[i], type:'cpu', difficulty:'medium'});
-  renderSetupRows();
-}
-function removeKingdom(i){ kingdomsConfig.splice(i,1); renderSetupRows(); }
+/* ================= RNG ================= */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
+function seededRandom(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}return mulberry32(h>>>0);}
+function randomSeed(){const c='abcdefghjkmnpqrstuvwxyz23456789';let s='';for(let i=0;i<5;i++)s+=c[Math.floor(Math.random()*c.length)];document.getElementById('seedInput').value=s;}
 randomSeed();
-renderSetupRows();
+let gameRnd = Math.random;
 
-/* ================== GAME STATE ================== */
-let state = null;
-let undoStack = [];
-
-function idx(c,r){ return r*COLS+c; }
-function inBounds(c,r){ return c>=0 && c<COLS && r>=0 && r<ROWS; }
-function neighbors(c,r){
-  const parity = c & 1;
-  const res=[];
-  for(const [dc,dr] of ODDQ_DIR[parity]){
-    const nc=c+dc, nr=r+dr;
-    if(inBounds(nc,nr)) res.push({c:nc,r:nr,i:idx(nc,nr)});
-  }
-  return res;
-}
-function toCube(c,r){
-  const x=c;
-  const z=r-(c-(c&1))/2;
-  const y=-x-z;
-  return {x,y,z};
-}
-function hexDist(c1,r1,c2,r2){
-  const a=toCube(c1,r1), b=toCube(c2,r2);
-  return (Math.abs(a.x-b.x)+Math.abs(a.y-b.y)+Math.abs(a.z-b.z))/2;
-}
-function colRow(i){ return {c:i%COLS, r:Math.floor(i/COLS)}; }
-
-/* ---------- Map generation ---------- */
-function generateMap(seed){
-  const rnd = seededRandom(seed);
-  const tiles = [];
-  for(let r=0;r<ROWS;r++){
-    for(let c=0;c<COLS;c++){
-      const dx = Math.min(c, COLS-1-c)/(COLS/2);
-      const dy = Math.min(r, ROWS-1-r)/(ROWS/2);
-      const edge = Math.min(dx,dy); // 0 at border, ~1 in center
-      const waterChance = Math.max(0, 0.85 - edge*1.5) + rnd()*0.15;
-      let type;
-      if(rnd() < waterChance) type = T.WATER;
-      else {
-        const v = rnd();
-        if(v < 0.12) type = T.MOUNTAIN;
-        else if(v < 0.38) type = T.FOREST;
-        else type = T.GRASS;
-      }
-      tiles.push({type, owner:null, isCity:false, unit:null});
-    }
-  }
-  return tiles;
-}
-
-function landTiles(tiles){
-  const out=[];
-  tiles.forEach((t,i)=>{ if(t.type!==T.WATER && t.type!==T.MOUNTAIN && t.owner===null) out.push(i); });
-  return out;
-}
-
-function placeKingdoms(tiles, kingdoms){
-  const candidates = landTiles(tiles);
-  const chosen = [];
-  for(let k=0;k<kingdoms.length;k++){
-    let best=null, bestScore=-1;
-    const pool = candidates.filter(i=>!chosen.includes(i));
-    for(const i of pool){
-      const {c,r} = colRow(i);
-      let minD = Infinity;
-      for(const ch of chosen){
-        const cc=colRow(ch);
-        minD = Math.min(minD, hexDist(c,r,cc.c,cc.r));
-      }
-      if(chosen.length===0) minD = 999;
-      if(minD > bestScore){ bestScore = minD; best = i; }
-    }
-    if(best===null) best = pool[0] ?? candidates[0];
-    chosen.push(best);
-  }
-  chosen.forEach((tileIdx,k)=>{
-    const {c,r} = colRow(tileIdx);
-    tiles[tileIdx].owner = k;
-    tiles[tileIdx].isCity = true;
-    tiles[tileIdx].unit = {type:'settler', owner:k, moved:false};
-    neighbors(c,r).forEach(n=>{
-      const nt = tiles[n.i];
-      if(nt.type!==T.WATER && nt.type!==T.MOUNTAIN && nt.owner===null) nt.owner=k;
-    });
+/* ================= DIFFICULTY UI ================= */
+function renderDiffRow(){
+  const row=document.getElementById('diffRow'); row.innerHTML='';
+  Object.entries(DIFFICULTIES).forEach(([key,d])=>{
+    const b=document.createElement('button');
+    b.className='btn small'+(key===difficulty?' active':'');
+    b.textContent=d.label;
+    b.onclick=()=>{difficulty=key; renderDiffRow();};
+    row.appendChild(b);
   });
 }
+renderDiffRow();
 
-/* ---------- Init game ---------- */
+/* ================= GAME STATE ================= */
+let seed='';
+let levelNum=1;
+let level=null;
+let activeCave='A';
+let initialSnapshot=null;
+let player=null;
+let monstersByCave={A:[],B:[]};
+let particles=[];
+let phaseMode=false;
+let phaseCharges=0, zapCharges=0;
+let diamondsCollected=0;
+let monsterTimer=0;
+let running=false;
+let camX=0, camY=0, manualCam=false;
+let canvas, ctx, lowCanvas, lowCtx;
+let lastTime=0;
+
+/* replay */
+let recording=false, isReplaying=false;
+let actions=[], sessionStart=0, replayTimers=[];
+
+/* ================= AUDIO ================= */
+let audioCtx=null;
+let muted = localStorage.getItem('hc_muted')==='1';
+const bgMusic = document.getElementById('bgMusic');
+bgMusic.volume = 0.32;
+function updateMuteBtn(){
+  const b=document.getElementById('muteBtn');
+  if(b) b.textContent = muted ? '🔇' : '🔊';
+}
+function toggleMute(){
+  muted=!muted;
+  localStorage.setItem('hc_muted', muted?'1':'0');
+  bgMusic.muted = muted;
+  updateMuteBtn();
+}
+function ensureAudioStarted(){
+  if(!audioCtx){
+    try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
+  }
+  if(audioCtx && audioCtx.state==='suspended') audioCtx.resume();
+  bgMusic.muted = muted;
+  if(!muted){ bgMusic.play().catch(()=>{}); }
+  updateMuteBtn();
+}
+function playSfx(kind){
+  if(muted || !audioCtx) return;
+  const t0 = audioCtx.currentTime;
+  const gain = audioCtx.createGain();
+  gain.connect(audioCtx.destination);
+  function tone(freqFrom, freqTo, dur, type, vol, delay){
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freqFrom, t0+delay);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(30,freqTo), t0+delay+dur);
+    g.gain.setValueAtTime(0, t0+delay);
+    g.gain.linearRampToValueAtTime(vol, t0+delay+0.015);
+    g.gain.exponentialRampToValueAtTime(0.001, t0+delay+dur);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(t0+delay); osc.stop(t0+delay+dur+0.02);
+  }
+  switch(kind){
+    case 'pickup': tone(620,1100,0.14,'square',0.18,0); break;
+    case 'zap':    tone(900,180,0.16,'square',0.2,0); break;
+    case 'phase':  tone(300,950,0.28,'sawtooth',0.14,0); break;
+    case 'portal': tone(400,1300,0.32,'triangle',0.16,0); break;
+    case 'push':   tone(140,90,0.1,'square',0.14,0); break;
+    case 'squash': tone(160,50,0.22,'square',0.2,0); break;
+    case 'death':  tone(320,50,0.5,'sawtooth',0.22,0); tone(220,40,0.5,'square',0.15,0.05); break;
+    case 'win':    tone(523,523,0.12,'square',0.16,0); tone(659,659,0.12,'square',0.16,0.13); tone(784,784,0.22,'square',0.18,0.26); break;
+  }
+}
+
+/* ================= SETUP ================= */
 function startGame(){
-  if(kingdomsConfig.length<2){ alert('Behöver minst 2 riken.'); return; }
-  if(!kingdomsConfig.some(k=>k.type==='human')){ alert('Minst ett rike måste vara Människa.'); return; }
-  const seed = document.getElementById('seedInput').value || 'abcde';
-  const tiles = generateMap(seed);
-  const kingdoms = kingdomsConfig.map((k,i)=>({
-    id:i, color:k.color, name:k.name, human:k.type==='human',
-    difficulty:k.difficulty||'medium', gold:50, alive:true,
-  }));
-  placeKingdoms(tiles, kingdoms);
-  state = {
-    seed, tiles, kingdoms,
-    turnOrder: kingdoms.map(k=>k.id),
-    currentTurnIndex: 0,
-    round: 1,
-    selected: null,
-    validMoves: [],
-    gameOver:false,
-  };
-  undoStack = [];
-  document.getElementById('setupScreen').style.display='none';
+  seed = document.getElementById('seedInput').value || 'abcde';
+  levelNum=1; isReplaying=false; recording=true; actions=[];
+  document.getElementById('replayBanner').style.display='none';
+  ensureAudioStarted();
+  enterGameScreen();
+  buildLevel();
+  sessionStart = performance.now();
+  running=true; lastTime=performance.now();
+  requestAnimationFrame(loop);
+}
+function enterGameScreen(){
+  document.getElementById('startScreen').style.display='none';
   document.getElementById('gameScreen').style.display='flex';
-  buildMapDOM();
-  renderAll();
+  canvas=document.getElementById('cv'); ctx=canvas.getContext('2d');
+  lowCanvas=document.createElement('canvas'); lowCtx=lowCanvas.getContext('2d');
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  setupInput();
+  updateMuteBtn();
 }
 function backToMenu(){
+  running=false;
+  replayTimers.forEach(t=>clearTimeout(t)); replayTimers=[];
+  bgMusic.pause();
   document.getElementById('gameScreen').style.display='none';
-  document.getElementById('setupScreen').style.display='flex';
-  closeModal('endModal');
-  state=null;
+  document.getElementById('startScreen').style.display='flex';
+  closeModal('deadModal'); closeModal('winModal'); closeModal('replayModal');
+}
+function resizeCanvas(){
+  const wrap=document.getElementById('canvasWrap');
+  canvas.width=wrap.clientWidth; canvas.height=wrap.clientHeight;
+  lowCanvas.width=Math.ceil(canvas.width/RES_SCALE); lowCanvas.height=Math.ceil(canvas.height/RES_SCALE);
+  lowCtx.imageSmoothingEnabled=false; ctx.imageSmoothingEnabled=false;
 }
 
-/* ---------- Undo ---------- */
-function snapshot(){
-  undoStack.push(JSON.stringify({tiles:state.tiles, kingdoms:state.kingdoms,
-    currentTurnIndex:state.currentTurnIndex, round:state.round}));
-  if(undoStack.length>12) undoStack.shift();
-}
-function undo(){
-  if(undoStack.length===0) return;
-  const snap = JSON.parse(undoStack.pop());
-  state.tiles = snap.tiles;
-  state.kingdoms = snap.kingdoms;
-  state.currentTurnIndex = snap.currentTurnIndex;
-  state.round = snap.round;
-  state.selected=null; state.validMoves=[];
-  renderAll();
-}
-
-/* ---------- Rendering ---------- */
-function buildMapDOM(){
-  const container = document.getElementById('mapContainer');
-  container.innerHTML='';
-  const w = 0.75*HEX_W*(COLS-1) + HEX_W;
-  const h = HEX_H*ROWS + HEX_H/2 + HEX_H/2;
-  container.style.width = w+'px';
-  container.style.height = h+'px';
-  for(let r=0;r<ROWS;r++){
-    for(let c=0;c<COLS;c++){
-      const i = idx(c,r);
-      const div = document.createElement('div');
-      div.className='hex';
-      div.id='hex-'+i;
-      div.style.width = HEX_W+'px';
-      div.style.height = HEX_H+'px';
-      div.style.left = (0.75*HEX_W*c)+'px';
-      div.style.top = (HEX_H*r + (c&1?HEX_H/2:0) + HEX_H/2)+'px';
-      div.onclick = ()=>tileClick(i);
-      container.appendChild(div);
+/* ================= CAVE GENERATION ================= */
+function generateCave(rnd, w, h){
+  const grid=[];
+  for(let y=0;y<h;y++){
+    const row=[];
+    for(let x=0;x<w;x++){
+      const isBorder = x===0||y===0||x===w-1||y===h-1;
+      row.push({type:isBorder?'wall':'dirt', seed:rnd()});
     }
+    grid.push(row);
   }
-}
-
-function renderAll(){
-  if(!state) return;
-  renderMap();
-  renderTopbar();
-  renderPanel();
-}
-
-function renderMap(){
-  state.tiles.forEach((tile,i)=>{
-    const div = document.getElementById('hex-'+i);
-    const ts = TERRAIN_STYLE[tile.type];
-    let bg = ts.bg;
-    div.classList.toggle('city', tile.isCity);
-    div.classList.toggle('selected', state.selected===i);
-    div.classList.toggle('valid', state.validMoves.includes(i));
-    if(tile.owner!==null){
-      const kc = state.kingdoms[tile.owner].color;
-      bg = mixColor(ts.bg, kc, 0.55);
-      div.style.borderBottom = '3px solid '+kc;
-    } else {
-      div.style.borderBottom = 'none';
-    }
-    div.style.background = bg;
-    let html = '';
-    if(tile.isCity) html += `<div class="icon" style="font-size:20px;">🏰</div>`;
-    else if(ts.icon) html += `<div class="icon">${ts.icon}</div>`;
-    if(tile.unit){
-      const ud = UNIT_DEF[tile.unit.type];
-      const oc = state.kingdoms[tile.unit.owner].color;
-      html += `<div class="unit" style="filter:drop-shadow(0 0 2px ${oc}) drop-shadow(0 0 2px ${oc});">${ud.icon}</div>`;
-    }
-    div.innerHTML = html;
-  });
-}
-function mixColor(hexBg, hexFg, amt){
-  const b = hexToRgb(hexBg), f = hexToRgb(hexFg);
-  const r = Math.round(b.r*(1-amt)+f.r*amt);
-  const g = Math.round(b.g*(1-amt)+f.g*amt);
-  const bl = Math.round(b.b*(1-amt)+f.b*amt);
-  return `rgb(${r},${g},${bl})`;
-}
-function hexToRgb(h){
-  h=h.replace('#','');
-  return {r:parseInt(h.substr(0,2),16), g:parseInt(h.substr(2,2),16), b:parseInt(h.substr(4,2),16)};
-}
-
-function renderTopbar(){
-  const cur = state.kingdoms[state.turnOrder[state.currentTurnIndex]];
-  const {income, upkeep} = computeIncome(cur.id);
-  const ri = document.getElementById('roundInfo');
-  ri.innerHTML = `<span class="turnDot" style="background:${cur.color}"></span>Runda ${state.round} · ${cur.name}${cur.human?'':' (CPU)'}<br>
-    💰 ${cur.gold}g &nbsp; <span style="color:var(--green-good)">+${income}</span> <span style="color:var(--red-bad)">-${upkeep}</span>/drag`;
-  const humanTurn = cur.human && !state.gameOver;
-  document.getElementById('endTurnBtn').disabled = !humanTurn;
-  document.getElementById('undoBtn').disabled = undoStack.length===0;
-}
-
-function computeIncome(kid){
-  let income = 0, upkeep = 0;
-  state.tiles.forEach(t=>{
-    if(t.owner===kid){
-      income += t.isCity ? CITY_BASE_INCOME : TILE_INCOME[t.type];
-      if(t.unit && t.unit.owner===kid) upkeep += UNIT_DEF[t.unit.type].upkeep;
-    }
-  });
-  return {income, upkeep};
-}
-
-function renderPanel(){
-  const title = document.getElementById('panelTitle');
-  const desc = document.getElementById('panelDesc');
-  const btns = document.getElementById('panelButtons');
-  btns.innerHTML='';
-  const cur = state.kingdoms[state.turnOrder[state.currentTurnIndex]];
-  if(!cur.human || state.gameOver){
-    title.textContent = state.gameOver ? 'Spelet är slut' : cur.name+' funderar...';
-    desc.textContent = state.gameOver ? '' : 'Väntar på CPU-drag.';
-    return;
-  }
-  if(state.selected===null){
-    title.textContent = 'Ditt drag';
-    desc.textContent = 'Tryck på en egen enhet eller stad för att agera.';
-    return;
-  }
-  const tile = state.tiles[state.selected];
-  if(tile.isCity && tile.owner===cur.id){
-    title.textContent = 'Stad';
-    desc.textContent = 'Träna en enhet (kostnad / upkeep per drag):';
-    Object.entries(UNIT_DEF).forEach(([key,ud])=>{
-      const b=document.createElement('button');
-      b.className='actbtn';
-      b.disabled = cur.gold < ud.cost || !!tile.unit;
-      b.innerHTML = `${ud.icon} ${ud.label}<small>${ud.cost}g · -${ud.upkeep}g/drag</small>`;
-      b.onclick = ()=>trainUnit(state.selected, key);
-      btns.appendChild(b);
-    });
-    if(tile.unit) desc.textContent += ' (Fältet är upptaget — flytta ut enheten först)';
-    return;
-  }
-  if(tile.unit && tile.unit.owner===cur.id){
-    const ud = UNIT_DEF[tile.unit.type];
-    title.textContent = ud.label;
-    desc.textContent = tile.unit.moved ? 'Redan agerat denna runda.' : 'Tryck på ett markerat fält för att flytta / anfalla.';
-    if(tile.unit.type==='settler'){
-      const {c,r} = colRow(state.selected);
-      const nearCity = state.tiles.some((t,i)=>{
-        if(!t.isCity) return false; const cc=colRow(i); return hexDist(c,r,cc.c,cc.r) < 2;
-      });
-      const b=document.createElement('button');
-      b.className='actbtn';
-      b.disabled = tile.owner!==cur.id || nearCity;
-      b.innerHTML = `🏰 Grunda stad<small>${nearCity?'för nära annan stad':'gratis'}</small>`;
-      b.onclick = ()=>foundCity(state.selected);
-      btns.appendChild(b);
-    }
-    const dis=document.createElement('button');
-    dis.className='actbtn';
-    dis.innerHTML='✖ Upplös enhet<small>stoppar upkeep</small>';
-    dis.onclick=()=>disbandUnit(state.selected);
-    btns.appendChild(dis);
-    return;
-  }
-  title.textContent='Fält';
-  desc.textContent='Inget att göra här.';
-}
-
-/* ---------- Interactions ---------- */
-function tileClick(i){
-  const cur = state.kingdoms[state.turnOrder[state.currentTurnIndex]];
-  if(!cur.human || state.gameOver) return;
-  const tile = state.tiles[i];
-
-  if(state.selected!==null && state.validMoves.includes(i)){
-    performMove(state.selected, i);
-    state.selected=null; state.validMoves=[];
-    renderAll();
-    return;
-  }
-  if(state.selected===i){ state.selected=null; state.validMoves=[]; renderAll(); return; }
-
-  if((tile.unit && tile.unit.owner===cur.id && !tile.unit.moved) || (tile.isCity && tile.owner===cur.id)){
-    state.selected = i;
-    state.validMoves = tile.unit ? computeValidMoves(i) : [];
-    renderAll();
-    return;
-  }
-  state.selected=null; state.validMoves=[];
-  renderAll();
-}
-
-function computeValidMoves(i){
-  const {c,r} = colRow(i);
-  const tile = state.tiles[i];
-  const owner = tile.unit.owner;
-  const out=[];
-  neighbors(c,r).forEach(n=>{
-    const nt = state.tiles[n.i];
-    if(nt.type===T.WATER || nt.type===T.MOUNTAIN) return;
-    if(tile.unit.type==='settler'){
-      if(nt.owner===null || nt.owner===owner) out.push(n.i);
-    } else {
-      out.push(n.i); // soldiers can move or attack any land tile
-    }
-  });
-  return out;
-}
-
-function trainUnit(cityIdx, unitKey){
-  const cur = state.kingdoms[state.turnOrder[state.currentTurnIndex]];
-  const ud = UNIT_DEF[unitKey];
-  const tile = state.tiles[cityIdx];
-  if(cur.gold < ud.cost || tile.unit) return;
-  snapshot();
-  cur.gold -= ud.cost;
-  tile.unit = {type:unitKey, owner:cur.id, moved:false};
-  renderAll();
-}
-
-function foundCity(settlerIdx){
-  const tile = state.tiles[settlerIdx];
-  const owner = tile.unit.owner;
-  snapshot();
-  tile.isCity = true;
-  tile.unit = null;
-  const {c,r} = colRow(settlerIdx);
-  neighbors(c,r).forEach(n=>{
-    const nt = state.tiles[n.i];
-    if(nt.type!==T.WATER && nt.type!==T.MOUNTAIN && nt.owner===null) nt.owner=owner;
-  });
-  state.selected=null; state.validMoves=[];
-  renderAll();
-}
-
-function disbandUnit(tileIdx){
-  snapshot();
-  state.tiles[tileIdx].unit=null;
-  state.selected=null; state.validMoves=[];
-  renderAll();
-}
-
-function performMove(fromIdx, toIdx){
-  snapshot();
-  const fromTile = state.tiles[fromIdx];
-  const toTile = state.tiles[toIdx];
-  const unit = fromTile.unit;
-  const attacker = UNIT_DEF[unit.type];
-
-  if(toTile.owner!==null && toTile.owner!==unit.owner){
-    // combat
-    let defStr = 0;
-    if(toTile.unit) defStr = UNIT_DEF[toTile.unit.type].str;
-    if(toTile.isCity) defStr += 1;
-    const rndFactor = (Math.random()-0.5)*0.6;
-    if(attacker.str + rndFactor > defStr){
-      const defenderKingdom = toTile.owner;
-      toTile.owner = unit.owner;
-      toTile.unit = {type:unit.type, owner:unit.owner, moved:true};
-      if(toTile.isCity){
-        checkElimination(defenderKingdom);
+  const occupied=new Set(); const key=(x,y)=>x+','+y;
+  const freeCell=(minDistFrom, minDist)=>{
+    let tries=0;
+    while(tries<400){
+      const x=1+Math.floor(rnd()*(w-2)), y=1+Math.floor(rnd()*(h-2));
+      if(!occupied.has(key(x,y))){
+        if(minDistFrom && (Math.abs(x-minDistFrom.x)+Math.abs(y-minDistFrom.y))<minDist){ tries++; continue; }
+        return {x,y};
       }
-      fromTile.unit = null;
-    } else {
-      fromTile.unit = null; // attacker destroyed
+      tries++;
     }
-  } else {
-    // move / claim
-    if(toTile.owner===null) toTile.owner = unit.owner;
-    toTile.unit = {type:unit.type, owner:unit.owner, moved:true};
-    fromTile.unit = null;
-  }
-  checkGameEnd();
+    return null;
+  };
+  return {grid,w,h,occupied,key,freeCell,rnd};
 }
+function markOccupied(c,x,y,type){ c.grid[y][x].type=type; c.occupied.add(c.key(x,y)); }
 
-function checkElimination(kid){
-  const stillHasCity = state.tiles.some(t=>t.isCity && t.owner===kid);
-  if(!stillHasCity){
-    state.kingdoms[kid].alive = false;
-    state.tiles.forEach(t=>{
-      if(t.owner===kid){ t.owner=null; t.unit=null; t.isCity=false; }
-    });
-  }
-}
+function buildLevel(){
+  const d = DIFFICULTIES[difficulty];
+  const w = Math.min(8 + Math.floor(levelNum/2), 13);
+  const h = Math.min(8 + Math.floor(levelNum/2), 11);
+  const rndA = seededRandom(seed+':A:lvl'+levelNum);
+  const rndB = seededRandom(seed+':B:lvl'+levelNum);
+  const caveA = generateCave(rndA, w, h);
+  const caveB = generateCave(rndB, w, h);
 
-/* ---------- Turn flow ---------- */
-function endHumanTurn(){
-  snapshot();
-  advanceTurn();
-}
-function advanceTurn(){
-  const kid = state.turnOrder[state.currentTurnIndex];
-  const k = state.kingdoms[kid];
-  if(k.alive){
-    applyIncome(k);
-    resetMoves(kid);
-  }
-  nextTurnIndex();
-}
-function applyIncome(k){
-  const {income, upkeep} = computeIncome(k.id);
-  let bonus = 1;
-  if(!k.human){
-    if(k.difficulty==='hard') bonus=1.25;
-    else if(k.difficulty==='easy') bonus=0.9;
-  }
-  k.gold = Math.max(0, Math.round(k.gold + income*bonus - upkeep));
-}
-function resetMoves(kid){
-  state.tiles.forEach(t=>{ if(t.unit && t.unit.owner===kid) t.unit.moved=false; });
-}
-function nextTurnIndex(){
-  state.currentTurnIndex++;
-  if(state.currentTurnIndex >= state.turnOrder.length){
-    state.currentTurnIndex = 0;
-    state.round++;
-    if(state.round > 40){ endGameByScore(); return; }
-  }
-  const k = state.kingdoms[state.turnOrder[state.currentTurnIndex]];
-  if(!k.alive){ nextTurnIndex(); return; }
-  state.selected=null; state.validMoves=[];
-  renderAll();
-  if(!k.human && !state.gameOver){
-    setTimeout(()=>runCpuTurn(k.id), 450);
-  }
-}
-
-function checkGameEnd(){
-  const alive = state.kingdoms.filter(k=>k.alive);
-  const human = state.kingdoms.find(k=>k.human);
-  if(alive.length<=1){
-    state.gameOver=true;
-    showEnd(alive[0]);
-    return true;
-  }
-  if(human && !human.alive){
-    state.gameOver=true;
-    showEnd(null);
-    return true;
-  }
-  return false;
-}
-function endGameByScore(){
-  let best=null, bestScore=-1;
-  state.kingdoms.forEach(k=>{
-    if(!k.alive) return;
-    const score = state.tiles.filter(t=>t.owner===k.id).length;
-    if(score>bestScore){ bestScore=score; best=k; }
-  });
-  state.gameOver=true;
-  showEnd(best);
-}
-function showEnd(winner){
-  const human = state.kingdoms.find(k=>k.human);
-  const title = document.getElementById('endTitle');
-  const text = document.getElementById('endText');
-  if(winner && winner.human){
-    title.textContent='🏆 SEGER!';
-    title.style.color='var(--green-good)';
-    text.textContent = winner.name+' har erövrat världen!';
-  } else if(winner){
-    title.textContent='💀 NEDERLAG';
-    title.style.color='var(--red-bad)';
-    text.textContent = winner.name+' vann spelet.';
-  } else {
-    title.textContent='💀 NEDERLAG';
-    title.style.color='var(--red-bad)';
-    text.textContent = 'Ditt rike gick under.';
-  }
-  document.getElementById('endModal').classList.remove('hidden');
-  renderAll();
-}
-
-/* ---------- CPU AI ---------- */
-function runCpuTurn(kid){
-  const k = state.kingdoms[kid];
-  if(!k.alive || state.gameOver) return;
-  const diff = k.difficulty;
-  const attackChance = diff==='easy'?0.25 : diff==='hard'?0.9 : 0.6;
-  const trainChance  = diff==='easy'?0.4  : diff==='hard'?0.85: 0.6;
-
-  // Train units from cities
-  state.tiles.forEach((tile,i)=>{
-    if(tile.isCity && tile.owner===kid && !tile.unit && Math.random()<trainChance){
-      const numCities = state.tiles.filter(t=>t.isCity && t.owner===kid).length;
-      let pick = 'settler';
-      if(numCities>=2 || Math.random()<0.5){
-        const r=Math.random();
-        pick = diff==='hard' ? (r<0.5?'soldier2':r<0.85?'soldier3':'soldier1')
-             : (r<0.6?'soldier1':'soldier2');
+  function populate(c, isPrimary){
+    const rnd=c.rnd;
+    const clumps = 2+Math.floor(levelNum/2);
+    for(let i=0;i<clumps;i++){
+      const cell=c.freeCell(); if(!cell) continue;
+      const len=1+Math.floor(rnd()*3);
+      let cx=cell.x, cy=cell.y;
+      for(let j=0;j<len;j++){
+        if(cx<=0||cy<=0||cx>=c.w-1||cy>=c.h-1) break;
+        markOccupied(c,cx,cy,'wall');
+        const dir=Math.floor(rnd()*4);
+        cx += dir===0?1:dir===1?-1:0;
+        cy += dir===2?1:dir===3?-1:0;
       }
-      const ud = UNIT_DEF[pick];
-      if(k.gold>=ud.cost){ k.gold-=ud.cost; tile.unit={type:pick, owner:kid, moved:false}; }
     }
-  });
+    const boulderCount = 3+Math.floor(levelNum*0.6);
+    for(let i=0;i<boulderCount;i++){ const cell=c.freeCell(); if(cell) markOccupied(c,cell.x,cell.y,'boulder'); }
+    const diamondTotal = Math.round((3+levelNum*0.4)*d.diamondMul);
+    let placed=0;
+    for(let i=0;i<diamondTotal;i++){ const cell=c.freeCell(); if(cell){ markOccupied(c,cell.x,cell.y,'diamond'); placed++; } }
+    return placed;
+  }
 
-  // Act with units
-  const unitTiles = [];
-  state.tiles.forEach((t,i)=>{ if(t.unit && t.unit.owner===kid && !t.unit.moved) unitTiles.push(i); });
+  // player spawn in cave A
+  markOccupied(caveA,1,1,'floor');
+  const diamondsA = populate(caveA);
+  const diamondsB = populate(caveB);
 
-  unitTiles.forEach(i=>{
-    const tile = state.tiles[i];
-    if(!tile.unit) return;
-    const {c,r} = colRow(i);
-    const nbrs = neighbors(c,r).filter(n=>{
-      const nt=state.tiles[n.i]; return nt.type!==T.WATER && nt.type!==T.MOUNTAIN;
-    });
-    if(nbrs.length===0) return;
+  // exit far corner of cave A
+  const ex=w-2, ey=h-2;
+  markOccupied(caveA, ex, ey, 'exit');
 
-    if(tile.unit.type==='settler'){
-      const unclaimed = nbrs.filter(n=>state.tiles[n.i].owner===null);
-      if(unclaimed.length>0){
-        const target = unclaimed[Math.floor(Math.random()*unclaimed.length)];
-        const nearCity = state.tiles.some((t2,ti)=>{
-          if(!t2.isCity) return false; const cc=colRow(ti);
-          const tc=colRow(target.i); return hexDist(tc.c,tc.r,cc.c,cc.r) < 2;
-        });
-        if(!nearCity && Math.random()<0.35){
-          tile.isCity=true; tile.unit=null;
-          const {c:fc,r:fr}=colRow(i);
-          neighbors(fc,fr).forEach(n2=>{ const nt2=state.tiles[n2.i]; if(nt2.type!==T.WATER&&nt2.type!==T.MOUNTAIN&&nt2.owner===null) nt2.owner=kid; });
-          return;
-        }
-        state.tiles[target.i].owner = kid;
-        state.tiles[target.i].unit = {type:'settler', owner:kid, moved:true};
-        tile.unit=null;
-      }
-      return;
+  // portals
+  let portalA = caveA.freeCell({x:1,y:1}, 3);
+  if(!portalA) portalA={x:Math.floor(w/2),y:Math.floor(h/2)};
+  markOccupied(caveA, portalA.x, portalA.y, 'portal');
+  markOccupied(caveB, 1, 1, 'floor');
+  let portalB = caveB.freeCell({x:1,y:1}, 3);
+  if(!portalB) portalB={x:Math.floor(w/2),y:Math.floor(h/2)};
+  markOccupied(caveB, portalB.x, portalB.y, 'portal');
+
+  // monsters
+  gameRnd = seededRandom(seed+':run'+levelNum);
+  function spawnMonsters(c, count, avoid){
+    const list=[];
+    for(let i=0;i<count;i++){
+      const cell=c.freeCell(avoid, 4); if(!cell) continue;
+      markOccupied(c, cell.x, cell.y, 'floor');
+      list.push({x:cell.x,y:cell.y,px:cell.x,py:cell.y,
+        type: gameRnd()<Math.min(0.75,0.15+levelNum*0.08)?'chaser':'wanderer',
+        moving:false,from:{x:cell.x,y:cell.y},to:{x:cell.x,y:cell.y},t:0,alive:true,bob:gameRnd()*10});
     }
+    return list;
+  }
+  const totalMonsters = Math.min(9, Math.round((1+levelNum*0.6)*d.monsterMul));
+  const monstersA = spawnMonsters(caveA, Math.ceil(totalMonsters*0.6), {x:1,y:1});
+  const monstersB = spawnMonsters(caveB, Math.floor(totalMonsters*0.4), {x:1,y:1});
 
-    // soldiers
-    const enemyTargets = nbrs.filter(n=>{
-      const nt=state.tiles[n.i]; return nt.owner!==null && nt.owner!==kid;
-    });
-    if(enemyTargets.length>0 && Math.random()<attackChance){
-      const target = enemyTargets[Math.floor(Math.random()*enemyTargets.length)];
-      performMove(i, target.i);
-      return;
-    }
-    const unclaimed = nbrs.filter(n=>state.tiles[n.i].owner===null);
-    if(unclaimed.length>0){
-      const target = unclaimed[Math.floor(Math.random()*unclaimed.length)];
-      state.tiles[target.i].owner = kid;
-      state.tiles[target.i].unit = {type:tile.unit.type, owner:kid, moved:true};
-      tile.unit=null;
-      return;
-    }
-    // wander
-    const own = nbrs.filter(n=>state.tiles[n.i].owner===kid && !state.tiles[n.i].unit);
-    if(own.length>0 && Math.random()<0.3){
-      const target = own[Math.floor(Math.random()*own.length)];
-      state.tiles[target.i].unit = {type:tile.unit.type, owner:kid, moved:true};
-      tile.unit=null;
-    }
-  });
+  level = {
+    w,h,
+    caves:{A:caveA.grid, B:caveB.grid},
+    portals:{A:portalA, B:portalB},
+    exit:{x:ex,y:ey,unlocked:false},
+    diamondsNeeded: Math.max(4, Math.ceil((diamondsA+diamondsB)*0.6)),
+    diamondsTotal: diamondsA+diamondsB,
+  };
+  activeCave='A';
+  diamondsCollected=0;
+  phaseCharges = d.phaseCharges; zapCharges = d.zapCharges;
+  phaseMode=false;
+  particles=[];
+  player = {x:1,y:1,px:1,py:1,moving:false,from:{x:1,y:1},to:{x:1,y:1},t:0,queue:[],dir:1,walkPhase:0,dead:false};
+  monstersByCave = {A:monstersA, B:monstersB};
+  camX = clampCam(player.x - canvas.width/RES_SCALE/TS/2, level.w - canvas.width/RES_SCALE/TS);
+  camY = clampCam(player.y - canvas.height/RES_SCALE/TS/2, level.h - canvas.height/RES_SCALE/TS);
+  manualCam=false;
+  monsterTimer=0;
 
-  if(checkGameEnd()) { renderAll(); return; }
-  advanceTurn();
+  initialSnapshot = JSON.stringify({caves:level.caves, monstersByCave});
+  updateHud();
+  showToast('Nivå '+levelNum);
+  updateHelp();
 }
+function clampCam(v,max){ return Math.max(0, Math.min(v, Math.max(0,max))); }
 
-/* ---------- Modals ---------- */
+function restartLevel(){
+  const snap = JSON.parse(initialSnapshot);
+  level.caves = snap.caves;
+  level.exit.unlocked=false;
+  activeCave='A';
+  diamondsCollected=0;
+  phaseCharges = DIFFICULTIES[difficulty].phaseCharges;
+  zapCharges = DIFFICULTIES[difficulty].zapCharges;
+  phaseMode=false;
+  gameRnd = seededRandom(seed+':run'+levelNum);
+  player.x=1; player.y=1; player.px=1; player.py=1;
+  player.moving=false; player.queue=[]; player.dead=false;
+  monstersByCave = {
+    A: snap.monstersByCave.A.map(m=>({...m,px:m.x,py:m.y,moving:false,from:{x:m.x,y:m.y},to:{x:m.x,y:m.y},t:0,alive:true})),
+    B: snap.monstersByCave.B.map(m=>({...m,px:m.x,py:m.y,moving:false,from:{x:m.x,y:m.y},to:{x:m.x,y:m.y},t:0,alive:true})),
+  };
+  particles=[];
+  closeModal('deadModal');
+  running=true;
+  manualCam=false;
+  updateHud();
+  showToast('Startar om');
+}
+function uiRestart(){ if(isReplaying) return; recordAction({type:'restart'}); restartLevel(); }
+function uiNextLevel(){ if(isReplaying) return; recordAction({type:'nextLevel'}); closeModal('winModal'); levelNum++; buildLevel(); running=true; }
+function nextLevel(){ closeModal('winModal'); levelNum++; buildLevel(); running=true; }
+
+/* ================= HUD ================= */
+function updateHud(){
+  const caveName = activeCave==='A' ? 'Övre grottan' : 'Undre grottan';
+  document.getElementById('hudInfo').innerHTML =
+    `N${levelNum} · ${caveName}<br>💎${diamondsCollected}/${level.diamondsNeeded} ⚡${zapCharges}`;
+  const pb = document.getElementById('phaseBtn');
+  pb.textContent = '🌀('+phaseCharges+')';
+  pb.disabled = phaseCharges<=0;
+  pb.classList.toggle('active', phaseMode);
+}
+function updateHelp(){
+  document.getElementById('help').textContent =
+    level.exit.unlocked ? 'Utgången är öppen i Övre grottan!' : 'Samla '+level.diamondsNeeded+' diamanter (finns i båda grottorna)';
+}
+let toastTimer=null;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'), 1500);
+}
 function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
-function showDetails(){
-  const body = document.getElementById('detailsBody');
-  body.innerHTML='';
-  state.kingdoms.forEach(k=>{
-    const {income, upkeep} = computeIncome(k.id);
-    const tiles = state.tiles.filter(t=>t.owner===k.id).length;
-    const cities = state.tiles.filter(t=>t.isCity && t.owner===k.id).length;
-    const div=document.createElement('div');
-    div.style.marginBottom='10px';
-    div.innerHTML = `
-      <div style="color:${k.color}; font-family:'Press Start 2P'; font-size:11px; margin-bottom:4px;">${k.name}${k.human?'':' (CPU · '+k.difficulty+')'} ${k.alive?'':'☠'}</div>
-      <div class="row"><span>Guld</span><span>${k.gold}g</span></div>
-      <div class="row"><span>Städer / Fält</span><span>${cities} / ${tiles}</span></div>
-      <div class="row"><span style="color:var(--green-good)">Inkomst</span><span>+${income}g</span></div>
-      <div class="row total"><span style="color:var(--red-bad)">Upkeep</span><span>-${upkeep}g</span></div>
-    `;
-    body.appendChild(div);
+
+/* ================= REPLAY ================= */
+function recordAction(a){
+  if(!recording || isReplaying) return;
+  a.t = Math.round(performance.now()-sessionStart);
+  actions.push(a);
+}
+function uiShowReplay(){
+  const code = btoa(unescape(encodeURIComponent(JSON.stringify({seed,difficulty,actions}))));
+  document.getElementById('replayCodeBox').value = code;
+  document.getElementById('replayModal').classList.remove('hidden');
+}
+function copyReplayCode(){
+  const box=document.getElementById('replayCodeBox');
+  box.select();
+  try{ document.execCommand('copy'); showToast('Kopierad!'); }catch(e){}
+}
+function startReplay(code){
+  code = (code||'').trim();
+  if(!code){ alert('Klistra in en repris-kod först.'); return; }
+  let data;
+  try{ data = JSON.parse(decodeURIComponent(escape(atob(code)))); }
+  catch(e){ alert('Ogiltig repris-kod.'); return; }
+  seed = data.seed; difficulty = data.difficulty || 'normal';
+  levelNum=1; isReplaying=true; recording=false;
+  ensureAudioStarted();
+  enterGameScreen();
+  document.getElementById('replayBanner').style.display='block';
+  buildLevel();
+  sessionStart = performance.now();
+  running=true; lastTime=performance.now();
+  (data.actions||[]).forEach(a=>{
+    const id = setTimeout(()=>applyReplayAction(a), a.t);
+    replayTimers.push(id);
   });
-  document.getElementById('detailsModal').classList.remove('hidden');
+  requestAnimationFrame(loop);
+}
+function applyReplayAction(a){
+  if(a.type==='tap') handleTap(a.x,a.y);
+  else if(a.type==='togglePhase') togglePhase();
+  else if(a.type==='nextLevel'){ closeModal('winModal'); levelNum++; buildLevel(); running=true; }
+  else if(a.type==='restart') restartLevel();
+}
+
+/* ================= INPUT ================= */
+let pointerDown=false, dragging=false, startPX=0, startPY=0, camStartX=0, camStartY=0;
+function setupInput(){
+  canvas.onpointerdown = e=>{
+    if(isReplaying) return;
+    pointerDown=true; dragging=false;
+    startPX=e.clientX; startPY=e.clientY;
+    camStartX=camX; camStartY=camY;
+  };
+  canvas.onpointermove = e=>{
+    if(isReplaying || !pointerDown) return;
+    const dx=e.clientX-startPX, dy=e.clientY-startPY;
+    if(!dragging && (Math.abs(dx)>8||Math.abs(dy)>8)) dragging=true;
+    if(dragging){
+      manualCam=true;
+      const viewTilesX = canvas.width/RES_SCALE/TS, viewTilesY = canvas.height/RES_SCALE/TS;
+      camX = clampCam(camStartX - dx/TS, level.w - viewTilesX);
+      camY = clampCam(camStartY - dy/TS, level.h - viewTilesY);
+    }
+  };
+  canvas.onpointerup = e=>{
+    if(isReplaying || !pointerDown) return;
+    pointerDown=false;
+    if(!dragging){
+      const rect=canvas.getBoundingClientRect();
+      const scaleX = canvas.width/rect.width, scaleY = canvas.height/rect.height;
+      const wx = camX + ((e.clientX-rect.left)*scaleX)/RES_SCALE/TS;
+      const wy = camY + ((e.clientY-rect.top)*scaleY)/RES_SCALE/TS;
+      const tx=Math.floor(wx), ty=Math.floor(wy);
+      recordAction({type:'tap', x:tx, y:ty});
+      handleTap(tx, ty);
+    }
+    dragging=false;
+  };
+  canvas.onpointercancel = ()=>{pointerDown=false;dragging=false;};
+}
+function uiTogglePhase(){ if(isReplaying) return; recordAction({type:'togglePhase'}); togglePhase(); }
+function togglePhase(){
+  if(phaseCharges<=0) return;
+  phaseMode=!phaseMode;
+  updateHud();
+  showToast(phaseMode?'Fasa: peka på en vägg':'Fasa avbruten');
+}
+
+/* ================= GAME LOGIC ================= */
+function curGrid(){ return level.caves[activeCave]; }
+function inBounds(x,y){ return x>=0&&x<level.w&&y>=0&&y<level.h; }
+function cellAt(x,y){ return inBounds(x,y)?curGrid()[y][x]:{type:'wall'}; }
+function curMonsters(){ return monstersByCave[activeCave]; }
+function isMonsterAt(x,y){ return curMonsters().some(m=>m.alive && Math.round(m.x)===x && Math.round(m.y)===y); }
+function monsterAt(x,y){ return curMonsters().find(m=>m.alive && Math.round(m.x)===x && Math.round(m.y)===y); }
+
+function handleTap(tx,ty){
+  if(!inBounds(tx,ty) || player.dead || !running) return;
+  if(phaseMode){ tryPhase(tx,ty); return; }
+  const dx=tx-player.x, dy=ty-player.y;
+  if(Math.abs(dx)+Math.abs(dy)===1){
+    attemptDirectMove(tx,ty,Math.sign(dx),Math.sign(dy));
+    return;
+  }
+  if(dx===0 && dy===0) return;
+  const path = bfsPath(player.x,player.y,tx,ty);
+  if(path && path.length>0){
+    player.queue = path;
+    manualCam=false;
+    if(!player.moving) advanceQueue();
+  } else {
+    showToast('Kan inte nå dit');
+  }
+}
+
+function attemptDirectMove(tx,ty,dx,dy){
+  const mon = monsterAt(tx,ty);
+  if(mon){
+    if(zapCharges>0){
+      mon.alive=false; zapCharges--; updateHud();
+      spawnParticles(tx,ty,'#ffdf6b',9);
+      showToast('Attackerade!');
+      playSfx('zap');
+    } else {
+      showToast('Inga attacker kvar — knuffa en sten på det!');
+    }
+    return;
+  }
+  const cell = cellAt(tx,ty);
+  if(cell.type==='wall') return;
+  if(cell.type==='boulder'){
+    const bx=tx+dx, by=ty+dy;
+    const beyond = cellAt(bx,by);
+    if(beyond.type==='floor'){
+      const beyondMon = monsterAt(bx,by);
+      if(beyondMon){ beyondMon.alive=false; spawnParticles(bx,by,'#e05a4e',8); playSfx('squash'); }
+      else playSfx('push');
+      beyond.type='boulder'; beyond.seed=cell.seed;
+      cell.type='floor';
+      startPlayerStep(tx,ty);
+      spawnParticles(tx,ty,'#8a8378',3);
+    }
+    return;
+  }
+  if(cell.type==='exit'){
+    if(level.exit.unlocked){ startPlayerStep(tx,ty); setTimeout(winLevel,180); }
+    return;
+  }
+  if(cell.type==='portal'){
+    startPlayerStep(tx,ty);
+    setTimeout(usePortal, 160);
+    return;
+  }
+  if(cell.type==='diamond'){
+    cell.type='floor';
+    diamondsCollected++;
+    spawnParticles(tx,ty,'#5fd6e8',6);
+    playSfx('pickup');
+    if(diamondsCollected>=level.diamondsNeeded && !level.exit.unlocked){
+      level.exit.unlocked=true; showToast('Utgången är öppen!'); updateHelp();
+    }
+    updateHud();
+    startPlayerStep(tx,ty);
+    return;
+  }
+  if(cell.type==='dirt'){ cell.type='floor'; startPlayerStep(tx,ty); return; }
+  if(cell.type==='floor'){ startPlayerStep(tx,ty); return; }
+}
+
+function usePortal(){
+  const otherCave = activeCave==='A' ? 'B' : 'A';
+  const dest = level.portals[otherCave];
+  activeCave = otherCave;
+  player.x=dest.x; player.y=dest.y; player.px=dest.x; player.py=dest.y;
+  player.from={x:dest.x,y:dest.y}; player.to={x:dest.x,y:dest.y}; player.moving=false; player.queue=[];
+  manualCam=false;
+  spawnParticles(dest.x,dest.y,'#7fd1ff',12);
+  showToast(activeCave==='A' ? 'Bytte till Övre grottan' : 'Bytte till Undre grottan');
+  playSfx('portal');
+  updateHud();
+}
+
+function startPlayerStep(tx,ty){
+  player.from={x:player.x,y:player.y};
+  player.to={x:tx,y:ty};
+  player.x=tx; player.y=ty;
+  player.t=0; player.moving=true;
+  player.dir = tx>player.from.x?1:(tx<player.from.x?-1:player.dir);
+}
+
+function advanceQueue(){
+  if(player.dead) return;
+  if(player.queue.length===0) return;
+  const next = player.queue.shift();
+  const dx=next.x-player.x, dy=next.y-player.y;
+  if(Math.abs(dx)+Math.abs(dy)!==1){ player.queue=[]; return; }
+  const cell = cellAt(next.x,next.y);
+  if(isMonsterAt(next.x,next.y) || cell.type==='wall' || cell.type==='boulder' ||
+     (cell.type==='exit' && !level.exit.unlocked)){
+    player.queue=[]; return;
+  }
+  attemptDirectMove(next.x,next.y,dx,dy);
+}
+
+function tryPhase(tx,ty){
+  const dx=tx-player.x, dy=ty-player.y;
+  const sameLine = (dx===0 && dy!==0) || (dy===0 && dx!==0);
+  if(!sameLine){ showToast('Peka rakt genom en vägg'); return; }
+  const sx=Math.sign(dx), sy=Math.sign(dy);
+  let cx=player.x+sx, cy=player.y+sy, sawWall=false, steps=0;
+  while(inBounds(cx,cy) && steps<7){
+    const c=cellAt(cx,cy);
+    if(c.type==='wall'){ sawWall=true; }
+    else {
+      if(sawWall && c.type!=='exit' && !isMonsterAt(cx,cy)){
+        player.x=cx; player.y=cy; player.px=cx; player.py=cy;
+        player.from={x:cx,y:cy}; player.to={x:cx,y:cy}; player.moving=false; player.queue=[];
+        phaseCharges--; phaseMode=false;
+        spawnParticles(cx,cy,'#c084fc',10);
+        updateHud();
+        showToast('Fasade genom väggen!');
+        playSfx('phase');
+        manualCam=false;
+        return;
+      } else { break; }
+    }
+    cx+=sx; cy+=sy; steps++;
+  }
+  showToast('Inget att fasa till');
+}
+
+function bfsPath(sx,sy,tx,ty){
+  const target = cellAt(tx,ty);
+  if(target.type==='wall' || target.type==='boulder') return null;
+  if(target.type==='exit' && !level.exit.unlocked) return null;
+  const key=(x,y)=>x+','+y;
+  const visited = new Set([key(sx,sy)]);
+  const prev = new Map();
+  const q=[{x:sx,y:sy}]; let head=0;
+  while(head<q.length){
+    const cur=q[head++];
+    if(cur.x===tx && cur.y===ty) break;
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+    for(const [dx,dy] of dirs){
+      const nx=cur.x+dx, ny=cur.y+dy;
+      if(!inBounds(nx,ny)) continue;
+      if(visited.has(key(nx,ny))) continue;
+      const c=cellAt(nx,ny);
+      const walkable = c.type==='floor'||c.type==='dirt'||c.type==='diamond'||c.type==='portal'||(c.type==='exit'&&level.exit.unlocked);
+      if(!walkable) continue;
+      if(isMonsterAt(nx,ny)) continue;
+      visited.add(key(nx,ny));
+      prev.set(key(nx,ny), cur);
+      q.push({x:nx,y:ny});
+    }
+  }
+  if(!visited.has(key(tx,ty))) return null;
+  const path=[]; let cur={x:tx,y:ty};
+  while(!(cur.x===sx && cur.y===sy)){
+    path.push(cur);
+    cur = prev.get(key(cur.x,cur.y));
+    if(!cur) return null;
+  }
+  path.reverse();
+  return path;
+}
+
+/* ---- monsters (both caves roam; only active cave can touch player) ---- */
+function monsterTick(){
+  ['A','B'].forEach(caveKey=>{
+    const grid = level.caves[caveKey];
+    monstersByCave[caveKey].forEach(m=>{
+      if(!m.alive || m.moving) return;
+      let dx=0,dy=0;
+      const targetHere = caveKey===activeCave;
+      if(m.type==='chaser' && targetHere && Math.abs(m.x-player.x)+Math.abs(m.y-player.y)<=7){
+        const optsPrimary = Math.abs(player.x-m.x)>=Math.abs(player.y-m.y);
+        const tryDirs = optsPrimary
+          ? [[Math.sign(player.x-m.x),0],[0,Math.sign(player.y-m.y)]]
+          : [[0,Math.sign(player.y-m.y)],[Math.sign(player.x-m.x),0]];
+        for(const [ddx,ddy] of tryDirs){
+          if(ddx===0&&ddy===0) continue;
+          if(canMonsterMove(grid,caveKey,m,m.x+ddx,m.y+ddy,targetHere)){ dx=ddx; dy=ddy; break; }
+        }
+      }
+      if(dx===0 && dy===0 && gameRnd()<0.7){
+        const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+        for(let i=dirs.length-1;i>0;i--){ const j=Math.floor(gameRnd()*(i+1)); [dirs[i],dirs[j]]=[dirs[j],dirs[i]]; }
+        for(const [ddx,ddy] of dirs){
+          if(canMonsterMove(grid,caveKey,m,m.x+ddx,m.y+ddy,targetHere)){ dx=ddx; dy=ddy; break; }
+        }
+      }
+      if(dx!==0||dy!==0){
+        const nx=m.x+dx, ny=m.y+dy;
+        m.from={x:m.x,y:m.y}; m.to={x:nx,y:ny}; m.x=nx; m.y=ny; m.t=0; m.moving=true;
+        if(targetHere && nx===player.x && ny===player.y && !player.dead){ killPlayer('Ett monster tog dig!'); }
+      }
+    });
+  });
+}
+function canMonsterMove(grid,caveKey,m,x,y,targetHere){
+  if(x<0||y<0||x>=level.w||y>=level.h) return false;
+  const c=grid[y][x];
+  if(c.type!=='floor') return false;
+  if(targetHere && player.x===x && player.y===y) return true;
+  if(monstersByCave[caveKey].some(o=>o!==m && o.alive && Math.round(o.x)===x && Math.round(o.y)===y)) return false;
+  return true;
+}
+
+function killPlayer(msg){
+  if(player.dead) return;
+  player.dead=true; player.queue=[]; running=false;
+  playSfx('death');
+  document.getElementById('deadText').textContent=msg;
+  document.getElementById('deadModal').classList.remove('hidden');
+}
+function winLevel(){
+  running=false;
+  playSfx('win');
+  document.getElementById('winText').textContent = 'Du hittade utgången med '+diamondsCollected+' diamanter!';
+  document.getElementById('winModal').classList.remove('hidden');
+}
+
+function spawnParticles(x,y,color,n){
+  for(let i=0;i<n;i++){
+    particles.push({x:x+0.5,y:y+0.5,vx:(Math.random()-0.5)*3,vy:(Math.random()-0.5)*3,life:1,color});
+  }
+}
+
+/* ================= LOOP ================= */
+function loop(now){
+  const dt = Math.min(50, now-lastTime); lastTime=now;
+  update(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+function update(dt){
+  if(!level) return;
+  if(player.moving){
+    player.t += dt/STEP_TIME;
+    if(player.t>=1){
+      player.t=1; player.moving=false;
+      player.px=player.to.x; player.py=player.to.y;
+      if(!player.dead) advanceQueue();
+    }
+    player.px = player.from.x + (player.to.x-player.from.x)*player.t;
+    player.py = player.from.y + (player.to.y-player.from.y)*player.t;
+    player.walkPhase += dt*0.02;
+  } else {
+    player.walkPhase += dt*0.004;
+  }
+
+  ['A','B'].forEach(k=>{
+    monstersByCave[k].forEach(m=>{
+      if(m.moving){
+        m.t += dt/MONSTER_STEP_TIME;
+        if(m.t>=1){ m.t=1; m.moving=false; m.px=m.to.x; m.py=m.to.y; }
+        m.px = m.from.x + (m.to.x-m.from.x)*m.t;
+        m.py = m.from.y + (m.to.y-m.from.y)*m.t;
+      }
+      m.bob += dt*0.006;
+    });
+  });
+
+  if(running){
+    monsterTimer += dt;
+    if(monsterTimer>MONSTER_INTERVAL){ monsterTimer=0; monsterTick(); }
+  }
+
+  particles.forEach(p=>{ p.x+=p.vx*dt/1000; p.y+=p.vy*dt/1000; p.life-=dt/600; });
+  particles = particles.filter(p=>p.life>0);
+
+  if(!manualCam){
+    const viewTilesX = canvas.width/RES_SCALE/TS, viewTilesY = canvas.height/RES_SCALE/TS;
+    const targetX = clampCam(player.px - viewTilesX/2, level.w - viewTilesX);
+    const targetY = clampCam(player.py - viewTilesY/2, level.h - viewTilesY);
+    camX += (targetX-camX)*0.14;
+    camY += (targetY-camY)*0.14;
+  }
+}
+
+/* ================= RENDER (low-res buffer upscaled for chunky retro look) ================= */
+function render(){
+  if(!ctx || !level) return;
+  const c = lowCtx, cw=lowCanvas.width, ch=lowCanvas.height;
+  c.fillStyle='#050506'; c.fillRect(0,0,cw,ch);
+  const viewTilesX = cw/TS, viewTilesY = ch/TS;
+  const startX = Math.max(0, Math.floor(camX));
+  const startY = Math.max(0, Math.floor(camY));
+  const endX = Math.min(level.w, Math.ceil(camX+viewTilesX)+1);
+  const endY = Math.min(level.h, Math.ceil(camY+viewTilesY)+1);
+  const ox = -camX*TS, oy = -camY*TS;
+  const grid = curGrid();
+
+  const phaseHi = phaseMode ? computePhaseHighlights() : null;
+
+  for(let y=startY;y<endY;y++){
+    for(let x=startX;x<endX;x++){
+      drawTile(c,grid[y][x], ox+x*TS, oy+y*TS, x, y, phaseHi);
+    }
+  }
+  particles.forEach(p=>{
+    c.globalAlpha = Math.max(0,p.life);
+    c.fillStyle=p.color;
+    c.fillRect(ox+p.x*TS-3, oy+p.y*TS-3, 6, 6);
+    c.globalAlpha=1;
+  });
+  curMonsters().forEach(m=>{ if(m.alive) drawMonster(c,m, ox+m.px*TS, oy+m.py*TS); });
+  if(player) drawPlayer(c, ox+player.px*TS, oy+player.py*TS);
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(lowCanvas,0,0,cw,ch,0,0,canvas.width,canvas.height);
+}
+
+function computePhaseHighlights(){
+  const set=new Set();
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+  dirs.forEach(([sx,sy])=>{
+    let cx=player.x+sx, cy=player.y+sy, steps=0;
+    while(inBounds(cx,cy) && steps<7){
+      set.add(cx+','+cy);
+      cx+=sx; cy+=sy; steps++;
+    }
+  });
+  return set;
+}
+
+function drawTile(c,cell,px,py,x,y,phaseHi){
+  c.save(); c.translate(px,py);
+  switch(cell.type){
+    case 'wall': drawWall(c); break;
+    case 'dirt': drawDirt(c,cell); break;
+    case 'floor': drawFloor(c); break;
+    case 'boulder': drawFloor(c); drawBoulder(c); break;
+    case 'diamond': drawFloor(c); drawDiamond(c,cell); break;
+    case 'exit': drawExit(c); break;
+    case 'portal': drawFloor(c); drawPortal(c); break;
+  }
+  if(phaseHi && phaseHi.has(x+','+y)){
+    c.fillStyle='rgba(192,132,252,0.28)'; c.fillRect(0,0,TS,TS);
+  }
+  c.restore();
+}
+function drawFloor(c){
+  c.fillStyle='#141018'; c.fillRect(0,0,TS,TS);
+  c.strokeStyle='rgba(255,255,255,0.04)'; c.strokeRect(0.5,0.5,TS-1,TS-1);
+}
+function drawWall(c){
+  c.fillStyle='#3a3f4a'; c.fillRect(0,0,TS,TS);
+  c.fillStyle='#4a505c'; c.fillRect(0,0,TS,TS*0.5);
+  c.strokeStyle='#1c1f26'; c.lineWidth=2;
+  c.strokeRect(1,1,TS-2,TS-2);
+  c.beginPath(); c.moveTo(0,TS/2); c.lineTo(TS,TS/2);
+  c.moveTo(TS/2,0); c.lineTo(TS/2,TS/2);
+  c.moveTo(TS/4,TS/2); c.lineTo(TS/4,TS);
+  c.moveTo(TS*0.75,TS/2); c.lineTo(TS*0.75,TS);
+  c.stroke();
+}
+function drawDirt(c,cell){
+  c.fillStyle='#5c4326'; c.fillRect(0,0,TS,TS);
+  const r = seededRandom('dirt'+cell.seed);
+  c.fillStyle='#4a351c';
+  for(let i=0;i<5;i++) c.fillRect(Math.floor(r()*TS/4)*4, Math.floor(r()*TS/4)*4, 4, 4);
+}
+function drawBoulder(c){
+  const cx=TS/2, cy=TS/2, rad=TS*0.36;
+  c.fillStyle='#6b6259';
+  c.beginPath(); c.arc(cx,cy,rad,0,7); c.fill();
+  c.fillStyle='#8a8378';
+  c.beginPath(); c.arc(cx-5,cy-5,rad*0.5,0,7); c.fill();
+  c.strokeStyle='#211e1a'; c.lineWidth=2; c.beginPath(); c.arc(cx,cy,rad,0,7); c.stroke();
+}
+function drawDiamond(c,cell){
+  const t = performance.now()*0.003 + cell.seed*10;
+  const cx=TS/2, cy=TS/2+Math.sin(t)*2;
+  const s=TS*0.26;
+  c.save(); c.translate(cx,cy); c.rotate(Math.PI/4);
+  c.fillStyle='#1f7a94'; c.fillRect(-s,-s,s*2,s*2);
+  c.fillStyle='#4fc3d9'; c.fillRect(-s,-s,s,s*2);
+  c.fillStyle='#bffaff'; c.fillRect(-s,-s,s,s);
+  c.strokeStyle='#eafeff'; c.lineWidth=1.5; c.strokeRect(-s,-s,s*2,s*2);
+  c.restore();
+}
+function drawPortal(c){
+  const cx=TS/2, cy=TS/2;
+  const t = performance.now()*0.002;
+  const col = activeCave==='A' ? '#5fd6e8' : '#c084fc';
+  c.fillStyle='#0c1a20'; c.beginPath(); c.arc(cx,cy,TS*0.4,0,7); c.fill();
+  c.strokeStyle=col; c.lineWidth=3;
+  for(let i=0;i<3;i++){
+    c.beginPath(); c.arc(cx,cy,TS*(0.12+i*0.09), t*(i+1), t*(i+1)+4); c.stroke();
+  }
+}
+function drawExit(c){
+  const cx=TS/2, cy=TS/2;
+  if(level.exit.unlocked){
+    const t = performance.now()*0.002;
+    c.fillStyle='#6b4e1e'; c.beginPath(); c.arc(cx,cy,TS*0.42,0,7); c.fill();
+    c.fillStyle='#f2c34d'; c.beginPath(); c.arc(cx,cy,TS*0.3,0,7); c.fill();
+    c.fillStyle='#fff4c2'; c.beginPath(); c.arc(cx,cy,TS*0.14,0,7); c.fill();
+    c.strokeStyle='#fff4c2'; c.lineWidth=2;
+    for(let i=0;i<3;i++){ c.beginPath(); c.arc(cx,cy,TS*(0.15+i*0.1), t+i, t+i+3); c.stroke(); }
+  } else {
+    c.fillStyle='#2a2a30'; c.beginPath(); c.arc(cx,cy,TS*0.42,0,7); c.fill();
+    c.strokeStyle='#4a4a50'; c.lineWidth=2; c.stroke();
+    c.fillStyle='#8a8378'; c.font='16px monospace'; c.textAlign='center'; c.textBaseline='middle';
+    c.fillText('🔒', cx, cy+1);
+  }
+}
+function drawPlayer(c,px,py){
+  c.save(); c.translate(px+TS/2, py+TS/2);
+  const stepFrame = player.moving ? (Math.floor(player.walkPhase*6)%2) : 0;
+  const bob = player.moving ? (stepFrame? -2:0) : Math.round(Math.sin(player.walkPhase*3)*1.2);
+  c.translate(0,bob);
+  c.scale(player.dir,1);
+  if(player.dead) c.globalAlpha=0.3;
+  c.save(); c.globalAlpha*=0.35; c.fillStyle='#000';
+  c.fillRect(-TS*0.18,TS*0.28,TS*0.36,TS*0.08); c.restore();
+  // cape
+  c.fillStyle='#2e2350';
+  c.beginPath(); c.moveTo(-TS*0.16,-TS*0.08); c.lineTo(-TS*0.24,TS*0.24); c.lineTo(-TS*0.06,TS*0.2); c.closePath(); c.fill();
+  // legs (discrete frames)
+  c.fillStyle='#241a30';
+  const legOff = stepFrame? 4:-4;
+  c.fillRect(-6+legOff*0.2,TS*0.18,5,TS*0.14);
+  c.fillRect(2-legOff*0.2,TS*0.18,5,TS*0.14);
+  // robe
+  c.fillStyle='#5a3e8a';
+  c.beginPath();
+  c.moveTo(0,-TS*0.12); c.lineTo(TS*0.2,TS*0.22); c.lineTo(-TS*0.2,TS*0.22); c.closePath(); c.fill();
+  c.fillStyle='#4a3070';
+  c.beginPath(); c.moveTo(0,-TS*0.12); c.lineTo(TS*0.06,TS*0.22); c.lineTo(-TS*0.06,TS*0.22); c.closePath(); c.fill();
+  c.strokeStyle='#1c1430'; c.lineWidth=1.5; c.strokeRect(-TS*0.001,-TS*0.13,0.001,0.001);
+  // belt
+  c.fillStyle='#f2c34d'; c.fillRect(-TS*0.14,TS*0.02,TS*0.28,3);
+  // staff
+  c.strokeStyle='#8a5a2e'; c.lineWidth=3; c.lineCap='round';
+  c.beginPath(); c.moveTo(TS*0.24,TS*0.2); c.lineTo(TS*0.24,-TS*0.28); c.stroke();
+  const glow = 0.6+Math.sin(performance.now()*0.005)*0.4;
+  c.fillStyle='rgba(95,214,232,'+glow+')';
+  c.beginPath(); c.arc(TS*0.24,-TS*0.3,4,0,7); c.fill();
+  // head
+  c.fillStyle='#f0d3a8';
+  c.beginPath(); c.arc(0,-TS*0.2,TS*0.13,0,7); c.fill();
+  // hat
+  c.fillStyle='#5a3e8a';
+  c.beginPath(); c.moveTo(-TS*0.17,-TS*0.26); c.lineTo(TS*0.17,-TS*0.26); c.lineTo(TS*0.04,-TS*0.6); c.closePath(); c.fill();
+  c.fillStyle='#f2c34d'; c.fillRect(-TS*0.19,-TS*0.27,TS*0.38,3);
+  c.fillStyle='#fff4c2';
+  c.beginPath(); c.arc(TS*0.02,-TS*0.42,2.2,0,7); c.fill();
+  // eyes
+  c.fillStyle='#1a1420'; c.fillRect(2,-TS*0.21,2,2);
+  c.restore();
+}
+function drawMonster(c,m,px,py){
+  c.save(); c.translate(px+TS/2, py+TS/2);
+  const bob = Math.round(Math.sin(m.bob)*3);
+  c.translate(0,bob);
+  const color = m.type==='chaser' ? '#e05a4e' : '#a855f7';
+  c.save(); c.globalAlpha=0.3; c.fillStyle='#000';
+  c.fillRect(-TS*0.2,TS*0.26,TS*0.4,TS*0.07); c.restore();
+  c.fillStyle=color;
+  c.beginPath();
+  c.arc(0,-TS*0.04,TS*0.22,Math.PI,0);
+  c.lineTo(TS*0.22,TS*0.2);
+  for(let i=0;i<4;i++){
+    const wx = TS*0.22 - i*(TS*0.44/3);
+    c.lineTo(wx - TS*0.44/6, i%2===0?TS*0.28:TS*0.16);
+  }
+  c.lineTo(-TS*0.22,TS*0.2);
+  c.closePath(); c.fill();
+  c.fillStyle='#fff';
+  c.fillRect(-TS*0.11,-TS*0.09,7,7); c.fillRect(TS*0.04,-TS*0.09,7,7);
+  c.fillStyle='#1a1420';
+  c.fillRect(-TS*0.08,-TS*0.06,3,3); c.fillRect(TS*0.07,-TS*0.06,3,3);
+  c.restore();
 }
 </script>
 </body>
