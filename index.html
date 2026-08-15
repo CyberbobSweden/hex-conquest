@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Hex Conquest</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+:root{
+  --ink:#eae3d0;
+  --panel:#1c1712;
+  --panel2:#241d16;
+  --gold:#f2c34d;
+  --green-good:#7ec850;
+  --red-bad:#e05a4e;
+  --border:#5a4a34;
+  --accent:#f2c34d;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+html,body{margin:0;padding:0;height:100%;background:#0c0a08;color:var(--ink);
+  font-family:'VT323',monospace; font-size:20px; overflow:hidden;}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;}
+.pixel{image-rendering:pixelated;}
+h1,h2,h3{font-family:'Press Start 2P',monospace; letter-spacing:1px;}
+
+/* ---------- Setup screen ---------- */
+#setupScreen{
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  background:
+    radial-gradient(circle at 30% 20%, #1e3a2e 0%, #0c0a08 60%);
+  padding:16px; overflow-y:auto;
+}
+#setupScreen h1{font-size:20px; color:var(--gold); text-shadow:3px 3px 0 #000; margin-bottom:4px; text-align:center;}
+#setupScreen .sub{font-size:16px; color:#a89a7c; margin-bottom:18px; text-align:center;}
+.panel-box{
+  background:var(--panel); border:4px solid var(--border); box-shadow:0 0 0 2px #000, 6px 6px 0 rgba(0,0,0,.5);
+  padding:16px; width:min(420px,92vw);
+}
+.field-label{font-size:15px; color:#a89a7c; margin-bottom:4px; text-transform:uppercase; letter-spacing:1px;}
+.seed-row{display:flex; gap:8px; margin-bottom:14px;}
+.seed-row input{flex:1; background:#0c0a08; border:3px solid var(--border); color:var(--ink); padding:8px; font-family:'VT323'; font-size:18px;}
+.btn{
+  font-family:'Press Start 2P',monospace; font-size:11px; color:var(--ink);
+  background:#3a4a2e; border:3px solid #000; box-shadow:3px 3px 0 #000;
+  padding:10px 12px; cursor:pointer; text-align:center; line-height:1.4;
+}
+.btn:active{transform:translate(2px,2px); box-shadow:1px 1px 0 #000;}
+.btn.small{font-size:10px; padding:8px;}
+.btn.gold{background:#6b4e1e;}
+.btn.green{background:#2e5a2e;}
+.btn.red{background:#5a2e2e;}
+.btn.start{width:100%; background:#2e5a2e; font-size:14px; padding:14px; margin-top:8px;}
+.btn:disabled{opacity:.4; cursor:default;}
+
+.kingdom-row{display:flex; align-items:center; gap:8px; margin-bottom:8px; background:#14100c; border:2px solid var(--border); padding:6px;}
+.swatch{width:22px;height:22px; border:2px solid #000; flex-shrink:0;}
+.kingdom-row select{flex:1; background:#0c0a08; color:var(--ink); border:2px solid var(--border); font-family:'VT323'; font-size:16px; padding:4px;}
+.kingdom-row .xbtn{background:#5a2e2e; border:2px solid #000; color:var(--ink); width:26px; height:26px; cursor:pointer; font-family:'Press Start 2P'; font-size:10px;}
+
+/* ---------- Game screen ---------- */
+#gameScreen{flex:1; display:none; flex-direction:column; min-height:0;}
+#topbar{
+  display:flex; align-items:center; gap:6px; padding:8px 8px;
+  background:var(--panel); border-bottom:4px solid var(--border); flex-wrap:wrap;
+}
+#roundInfo{font-family:'Press Start 2P'; font-size:10px; flex:1; min-width:140px; line-height:1.6;}
+#roundInfo .turnDot{display:inline-block;width:10px;height:10px;border:2px solid #000;vertical-align:middle;margin-right:4px;}
+.topbtn{font-family:'Press Start 2P'; font-size:9px; padding:8px 8px; background:#2e2a22; border:2px solid #000; box-shadow:2px 2px 0 #000; color:var(--ink); cursor:pointer;}
+.topbtn.end{background:#2e5a2e;}
+.topbtn:disabled{opacity:.35;}
+
+#mapWrap{flex:1; overflow:auto; background:#0a1a2a; -webkit-overflow-scrolling:touch; position:relative; touch-action:pan-x pan-y;}
+#mapContainer{position:relative; margin:20px;}
+
+.hex{
+  position:absolute; display:flex; align-items:center; justify-content:center;
+  clip-path:polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%);
+  cursor:pointer; transition:filter .1s;
+}
+.hex .icon{position:absolute; font-size:16px; text-shadow:1px 1px 0 #000; pointer-events:none;}
+.hex .unit{position:absolute; bottom:2px; font-size:15px; text-shadow:1px 1px 0 #000; pointer-events:none;}
+.hex.selected{outline:3px solid #fff; outline-offset:-3px; z-index:5;}
+.hex.valid::after{content:''; position:absolute; inset:0; background:rgba(255,255,255,.35); clip-path:inherit;}
+.hex.city{box-shadow:inset 0 0 0 3px #fff;}
+
+/* ---------- Action panel ---------- */
+#actionPanel{
+  background:var(--panel2); border-top:4px solid var(--border); padding:10px; min-height:64px;
+  display:flex; flex-direction:column; gap:8px;
+}
+#panelTitle{font-family:'Press Start 2P'; font-size:11px; color:var(--gold);}
+#panelDesc{font-size:16px; color:#c8bda2; margin-top:-4px;}
+#panelButtons{display:flex; flex-wrap:wrap; gap:6px;}
+.actbtn{font-family:'Press Start 2P'; font-size:9px; background:#3a3020; border:2px solid #000; box-shadow:2px 2px 0 #000; color:var(--ink); padding:9px 8px; cursor:pointer; text-align:left; line-height:1.5;}
+.actbtn:disabled{opacity:.35;}
+.actbtn small{display:block; color:#a89a7c; font-size:8px; margin-top:2px;}
+
+/* ---------- Modal ---------- */
+.modal{position:fixed; inset:0; background:rgba(0,0,0,.75); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px;}
+.modal.hidden{display:none;}
+.modal-box{background:var(--panel); border:4px solid var(--border); box-shadow:0 0 0 2px #000; padding:18px; width:min(380px,94vw); max-height:80vh; overflow-y:auto;}
+.modal-box h3{color:var(--gold); font-size:13px; margin-top:0;}
+.modal-box .row{display:flex; justify-content:space-between; font-size:17px; padding:3px 0; border-bottom:1px dashed #3a3020;}
+.modal-box .row.total{color:var(--gold); font-weight:bold; border-bottom:none; margin-top:6px;}
+
+#endModal .modal-box{text-align:center;}
+#endModal h2{font-size:16px; margin-bottom:6px;}
+#endModal p{font-size:18px; color:#c8bda2;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ SETUP SCREEN ============ -->
+  <div id="setupScreen">
+    <h1>⚔ HEX CONQUEST ⚔</h1>
+    <div class="sub">Erövra världen, ett hexfält i taget</div>
+    <div class="panel-box">
+      <div class="field-label">Kartfrö (seed)</div>
+      <div class="seed-row">
+        <input id="seedInput" type="text" value="">
+        <button class="btn gold small" onclick="randomSeed()">🎲 Slump</button>
+      </div>
+      <div class="field-label">Riken</div>
+      <div id="kingdomList"></div>
+      <button class="btn small" style="width:100%; margin-top:4px;" onclick="addKingdom()">+ Lägg till rike</button>
+      <button class="btn start" onclick="startGame()">▶ Starta spelet</button>
+    </div>
+  </div>
+
+  <!-- ============ GAME SCREEN ============ -->
+  <div id="gameScreen">
+    <div id="topbar">
+      <div id="roundInfo"></div>
+      <button class="topbtn" onclick="backToMenu()">Meny</button>
+      <button class="topbtn" id="undoBtn" onclick="undo()">↶ Ångra</button>
+      <button class="topbtn" onclick="showDetails()">Detaljer</button>
+      <button class="topbtn end" id="endTurnBtn" onclick="endHumanTurn()">Avsluta drag</button>
+    </div>
+    <div id="mapWrap"><div id="mapContainer"></div></div>
+    <div id="actionPanel">
+      <div id="panelTitle">Välkommen</div>
+      <div id="panelDesc">Tryck på en av dina enheter eller städer för att agera.</div>
+      <div id="panelButtons"></div>
+    </div>
+  </div>
+
+  <!-- Details modal -->
+  <div class="modal hidden" id="detailsModal">
+    <div class="modal-box">
+      <h3>💰 Ekonomi</h3>
+      <div id="detailsBody"></div>
+      <button class="btn small" style="width:100%; margin-top:12px;" onclick="closeModal('detailsModal')">Stäng</button>
+    </div>
+  </div>
+
+  <!-- End game modal -->
+  <div class="modal hidden" id="endModal">
+    <div class="modal-box">
+      <h2 id="endTitle"></h2>
+      <p id="endText"></p>
+      <button class="btn start" onclick="backToMenu()">Till menyn</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================== CONSTANTS ================== */
+const COLORS = ['#3b82f6','#ef4444','#f97316','#a855f7'];
+const NAMES  = ['Blå','Röd','Orange','Lila'];
+const T = {WATER:0, GRASS:1, FOREST:2, MOUNTAIN:3};
+const TERRAIN_STYLE = {
+  [T.WATER]:  {bg:'#1b4965', icon:''},
+  [T.GRASS]:  {bg:'#4a7c3f', icon:''},
+  [T.FOREST]: {bg:'#2f5d34', icon:'🌲'},
+  [T.MOUNTAIN]:{bg:'#6b6259', icon:'⛰️'},
+};
+const TILE_INCOME = {[T.GRASS]:1, [T.FOREST]:2, [T.MOUNTAIN]:0, [T.WATER]:0};
+const UNIT_DEF = {
+  settler:  {cost:20, upkeep:1, icon:'👤', label:'Nybyggare', str:0},
+  soldier1: {cost:40, upkeep:1, icon:'🗡️', label:'Soldat I', str:1},
+  soldier2: {cost:75, upkeep:2, icon:'⚔️', label:'Soldat II', str:2},
+  soldier3: {cost:120,upkeep:3, icon:'🛡️', label:'Soldat III', str:3},
+};
+const CITY_BASE_INCOME = 5;
+const COLS = 7, ROWS = 9;
+const HEX_W = 46;
+const HEX_H = HEX_W * 0.8660254;
+
+/* odd-q offset neighbor table */
+const ODDQ_DIR = [
+  [[1,0],[1,-1],[0,-1],[-1,-1],[-1,0],[0,1]],   // even col
+  [[1,1],[1,0],[0,-1],[-1,0],[-1,1],[0,1]],     // odd col
+];
+
+/* ================== RNG ================== */
+function mulberry32(a){
+  return function(){
+    a|=0; a=a+0x6D2B79F5|0;
+    let t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+function seededRandom(str){
+  let h=2166136261;
+  for(let i=0;i<str.length;i++){h^=str.charCodeAt(i); h=Math.imul(h,16777619);}
+  return mulberry32(h>>>0);
+}
+function randomSeed(){
+  const chars='abcdefghjkmnpqrstuvwxyz23456789';
+  let s='';
+  for(let i=0;i<5;i++) s+=chars[Math.floor(Math.random()*chars.length)];
+  document.getElementById('seedInput').value=s;
+}
+
+/* ================== SETUP STATE ================== */
+let kingdomsConfig = [
+  {color:COLORS[0], name:NAMES[0], type:'human', difficulty:'medium'},
+  {color:COLORS[1], name:NAMES[1], type:'cpu', difficulty:'medium'},
+];
+function renderSetupRows(){
+  const list = document.getElementById('kingdomList');
+  list.innerHTML='';
+  kingdomsConfig.forEach((k,i)=>{
+    const row=document.createElement('div');
+    row.className='kingdom-row';
+    row.innerHTML = `
+      <div class="swatch" style="background:${k.color}"></div>
+      <select onchange="setKingdomType(${i}, this.value)">
+        <option value="human" ${k.type==='human'?'selected':''}>Människa</option>
+        <option value="cpu" ${k.type==='cpu'?'selected':''}>CPU</option>
+      </select>
+      ${k.type==='cpu' ? `<select onchange="setKingdomDiff(${i}, this.value)">
+          <option value="easy" ${k.difficulty==='easy'?'selected':''}>Lätt</option>
+          <option value="medium" ${k.difficulty==='medium'?'selected':''}>Medel</option>
+          <option value="hard" ${k.difficulty==='hard'?'selected':''}>Svår</option>
+        </select>` : `<div style="flex:1"></div>`}
+      ${kingdomsConfig.length>2 ? `<button class="xbtn" onclick="removeKingdom(${i})">X</button>` : ''}
+    `;
+    list.appendChild(row);
+  });
+}
+function setKingdomType(i,v){ kingdomsConfig[i].type=v; renderSetupRows(); }
+function setKingdomDiff(i,v){ kingdomsConfig[i].difficulty=v; }
+function addKingdom(){
+  if(kingdomsConfig.length>=4) return;
+  const i=kingdomsConfig.length;
+  kingdomsConfig.push({color:COLORS[i], name:NAMES[i], type:'cpu', difficulty:'medium'});
+  renderSetupRows();
+}
+function removeKingdom(i){ kingdomsConfig.splice(i,1); renderSetupRows(); }
+randomSeed();
+renderSetupRows();
+
+/* ================== GAME STATE ================== */
+let state = null;
+let undoStack = [];
+
+function idx(c,r){ return r*COLS+c; }
+function inBounds(c,r){ return c>=0 && c<COLS && r>=0 && r<ROWS; }
+function neighbors(c,r){
+  const parity = c & 1;
+  const res=[];
+  for(const [dc,dr] of ODDQ_DIR[parity]){
+    const nc=c+dc, nr=r+dr;
+    if(inBounds(nc,nr)) res.push({c:nc,r:nr,i:idx(nc,nr)});
+  }
+  return res;
+}
+function toCube(c,r){
+  const x=c;
+  const z=r-(c-(c&1))/2;
+  const y=-x-z;
+  return {x,y,z};
+}
+function hexDist(c1,r1,c2,r2){
+  const a=toCube(c1,r1), b=toCube(c2,r2);
+  return (Math.abs(a.x-b.x)+Math.abs(a.y-b.y)+Math.abs(a.z-b.z))/2;
+}
+function colRow(i){ return {c:i%COLS, r:Math.floor(i/COLS)}; }
+
+/* ---------- Map generation ---------- */
+function generateMap(seed){
+  const rnd = seededRandom(seed);
+  const tiles = [];
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      const dx = Math.min(c, COLS-1-c)/(COLS/2);
+      const dy = Math.min(r, ROWS-1-r)/(ROWS/2);
+      const edge = Math.min(dx,dy); // 0 at border, ~1 in center
+      const waterChance = Math.max(0, 0.85 - edge*1.5) + rnd()*0.15;
+      let type;
+      if(rnd() < waterChance) type = T.WATER;
+      else {
+        const v = rnd();
+        if(v < 0.12) type = T.MOUNTAIN;
+        else if(v < 0.38) type = T.FOREST;
+        else type = T.GRASS;
+      }
+      tiles.push({type, owner:null, isCity:false, unit:null});
+    }
+  }
+  return tiles;
+}
+
+function landTiles(tiles){
+  const out=[];
+  tiles.forEach((t,i)=>{ if(t.type!==T.WATER && t.type!==T.MOUNTAIN && t.owner===null) out.push(i); });
+  return out;
+}
+
+function placeKingdoms(tiles, kingdoms){
+  const candidates = landTiles(tiles);
+  const chosen = [];
+  for(let k=0;k<kingdoms.length;k++){
+    let best=null, bestScore=-1;
+    const pool = candidates.filter(i=>!chosen.includes(i));
+    for(const i of pool){
+      const {c,r} = colRow(i);
+      let minD = Infinity;
+      for(const ch of chosen){
+        const cc=colRow(ch);
+        minD = Math.min(minD, hexDist(c,r,cc.c,cc.r));
+      }
+      if(chosen.length===0) minD = 999;
+      if(minD > bestScore){ bestScore = minD; best = i; }
+    }
+    if(best===null) best = pool[0] ?? candidates[0];
+    chosen.push(best);
+  }
+  chosen.forEach((tileIdx,k)=>{
+    const {c,r} = colRow(tileIdx);
+    tiles[tileIdx].owner = k;
+    tiles[tileIdx].isCity = true;
+    tiles[tileIdx].unit = {type:'settler', owner:k, moved:false};
+    neighbors(c,r).forEach(n=>{
+      const nt = tiles[n.i];
+      if(nt.type!==T.WATER && nt.type!==T.MOUNTAIN && nt.owner===null) nt.owner=k;
+    });
+  });
+}
+
+/* ---------- Init game ---------- */
+function startGame(){
+  if(kingdomsConfig.length<2){ alert('Behöver minst 2 riken.'); return; }
+  if(!kingdomsConfig.some(k=>k.type==='human')){ alert('Minst ett rike måste vara Människa.'); return; }
+  const seed = document.getElementById('seedInput').value || 'abcde';
+  const tiles = generateMap(seed);
+  const kingdoms = kingdomsConfig.map((k,i)=>({
+    id:i, color:k.color, name:k.name, human:k.type==='human',
+    difficulty:k.difficulty||'medium', gold:50, alive:true,
+  }));
+  placeKingdoms(tiles, kingdoms);
+  state = {
+    seed, tiles, kingdoms,
+    turnOrder: kingdoms.map(k=>k.id),
+    currentTurnIndex: 0,
+    round: 1,
+    selected: null,
+    validMoves: [],
+    gameOver:false,
+  };
+  undoStack = [];
+  document.getElementById('setupScreen').style.display='none';
+  document.getElementById('gameScreen').style.display='flex';
+  buildMapDOM();
+  renderAll();
+}
+function backToMenu(){
+  document.getElementById('gameScreen').style.display='none';
+  document.getElementById('setupScreen').style.display='flex';
+  closeModal('endModal');
+  state=null;
+}
+
+/* ---------- Undo ---------- */
+function snapshot(){
+  undoStack.push(JSON.stringify({tiles:state.tiles, kingdoms:state.kingdoms,
+    currentTurnIndex:state.currentTurnIndex, round:state.round}));
+  if(undoStack.length>12) undoStack.shift();
+}
+function undo(){
+  if(undoStack.length===0) return;
+  const snap = JSON.parse(undoStack.pop());
+  state.tiles = snap.tiles;
+  state.kingdoms = snap.kingdoms;
+  state.currentTurnIndex = snap.currentTurnIndex;
+  state.round = snap.round;
+  state.selected=null; state.validMoves=[];
+  renderAll();
+}
+
+/* ---------- Rendering ---------- */
+function buildMapDOM(){
+  const container = document.getElementById('mapContainer');
+  container.innerHTML='';
+  const w = 0.75*HEX_W*(COLS-1) + HEX_W;
+  const h = HEX_H*ROWS + HEX_H/2 + HEX_H/2;
+  container.style.width = w+'px';
+  container.style.height = h+'px';
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      const i = idx(c,r);
+      const div = document.createElement('div');
+      div.className='hex';
+      div.id='hex-'+i;
+      div.style.width = HEX_W+'px';
+      div.style.height = HEX_H+'px';
+      div.style.left = (0.75*HEX_W*c)+'px';
+      div.style.top = (HEX_H*r + (c&1?HEX_H/2:0) + HEX_H/2)+'px';
+      div.onclick = ()=>tileClick(i);
+      container.appendChild(div);
+    }
+  }
+}
+
+function renderAll(){
+  if(!state) return;
+  renderMap();
+  renderTopbar();
+  renderPanel();
+}
+
+function renderMap(){
+  state.tiles.forEach((tile,i)=>{
+    const div = document.getElementById('hex-'+i);
+    const ts = TERRAIN_STYLE[tile.type];
+    let bg = ts.bg;
+    div.classList.toggle('city', tile.isCity);
+    div.classList.toggle('selected', state.selected===i);
+    div.classList.toggle('valid', state.validMoves.includes(i));
+    if(tile.owner!==null){
+      const kc = state.kingdoms[tile.owner].color;
+      bg = mixColor(ts.bg, kc, 0.55);
+      div.style.borderBottom = '3px solid '+kc;
+    } else {
+      div.style.borderBottom = 'none';
+    }
+    div.style.background = bg;
+    let html = '';
+    if(tile.isCity) html += `<div class="icon" style="font-size:20px;">🏰</div>`;
+    else if(ts.icon) html += `<div class="icon">${ts.icon}</div>`;
+    if(tile.unit){
+      const ud = UNIT_DEF[tile.unit.type];
+      const oc = state.kingdoms[tile.unit.owner].color;
+      html += `<div class="unit" style="filter:drop-shadow(0 0 2px ${oc}) drop-shadow(0 0 2px ${oc});">${ud.icon}</div>`;
+    }
+    div.innerHTML = html;
+  });
+}
+function mixColor(hexBg, hexFg, amt){
+  const b = hexToRgb(hexBg), f = hexToRgb(hexFg);
+  const r = Math.round(b.r*(1-amt)+f.r*amt);
+  const g = Math.round(b.g*(1-amt)+f.g*amt);
+  const bl = Math.round(b.b*(1-amt)+f.b*amt);
+  return `rgb(${r},${g},${bl})`;
+}
+function hexToRgb(h){
+  h=h.replace('#','');
+  return {r:parseInt(h.substr(0,2),16), g:parseInt(h.substr(2,2),16), b:parseInt(h.substr(4,2),16)};
+}
+
+function renderTopbar(){
+  const cur = state.kingdoms[state.turnOrder[state.currentTurnIndex]];
+  const {income, upkeep} = computeIncome(cur.id);
+  const ri = document.getElementById('roundInfo');
+  ri.innerHTML = `<span class="turnDot" style="background:${cur.color}"></span>Runda ${state.round} · ${cur.name}${cur.human?'':' (CPU)'}<br>
+    💰 ${cur.gold}g &nbsp; <span style="color:var(--green-good)">+${income}</span> <span style="color:var(--red-bad)">-${upkeep}</span>/drag`;
+  const humanTurn = cur.human && !state.gameOver;
+  document.getElementById('endTurnBtn').disabled = !humanTurn;
+  document.getElementById('undoBtn').disabled = undoStack.length===0;
+}
+
+function computeIncome(kid){
+  let income = 0, upkeep = 0;
+  state.tiles.forEach(t=>{
+    if(t.owner===kid){
+      income += t.isCity ? CITY_BASE_INCOME : TILE_INCOME[t.type];
+      if(t.unit && t.unit.owner===kid) upkeep += UNIT_DEF[t.unit.type].upkeep;
+    }
+  });
+  return {income, upkeep};
+}
+
+function renderPanel(){
+  const title = document.getElementById('panelTitle');
+  const desc = document.getElementById('panelDesc');
+  const btns = document.getElementById('panelButtons');
+  btns.innerHTML='';
+  const cur = state.kingdoms[state.turnOrder[state.currentTurnIndex]];
+  if(!cur.human || state.gameOver){
+    title.textContent = state.gameOver ? 'Spelet är slut' : cur.name+' funderar...';
+    desc.textContent = state.gameOver ? '' : 'Väntar på CPU-drag.';
+    return;
+  }
+  if(state.selected===null){
+    title.textContent = 'Ditt drag';
+    desc.textContent = 'Tryck på en egen enhet eller stad för att agera.';
+    return;
+  }
+  const tile = state.tiles[state.selected];
+  if(tile.isCity && tile.owner===cur.id){
+    title.textContent = 'Stad';
+    desc.textContent = 'Träna en enhet (kostnad / upkeep per drag):';
+    Object.entries(UNIT_DEF).forEach(([key,ud])=>{
+      const b=document.createElement('button');
+      b.className='actbtn';
+      b.disabled = cur.gold < ud.cost || !!tile.unit;
+      b.innerHTML = `${ud.icon} ${ud.label}<small>${ud.cost}g · -${ud.upkeep}g/drag</small>`;
+      b.onclick = ()=>trainUnit(state.selected, key);
+      btns.appendChild(b);
+    });
+    if(tile.unit) desc.textContent += ' (Fältet är upptaget — flytta ut enheten först)';
+    return;
+  }
+  if(tile.unit && tile.unit.owner===cur.id){
+    const ud = UNIT_DEF[tile.unit.type];
+    title.textContent = ud.label;
+    desc.textContent = tile.unit.moved ? 'Redan agerat denna runda.' : 'Tryck på ett markerat fält för att flytta / anfalla.';
+    if(tile.unit.type==='settler'){
+      const {c,r} = colRow(state.selected);
+      const nearCity = state.tiles.some((t,i)=>{
+        if(!t.isCity) return false; const cc=colRow(i); return hexDist(c,r,cc.c,cc.r) < 2;
+      });
+      const b=document.createElement('button');
+      b.className='actbtn';
+      b.disabled = tile.owner!==cur.id || nearCity;
+      b.innerHTML = `🏰 Grunda stad<small>${nearCity?'för nära annan stad':'gratis'}</small>`;
+      b.onclick = ()=>foundCity(state.selected);
+      btns.appendChild(b);
+    }
+    const dis=document.createElement('button');
+    dis.className='actbtn';
+    dis.innerHTML='✖ Upplös enhet<small>stoppar upkeep</small>';
+    dis.onclick=()=>disbandUnit(state.selected);
+    btns.appendChild(dis);
+    return;
+  }
+  title.textContent='Fält';
+  desc.textContent='Inget att göra här.';
+}
+
+/* ---------- Interactions ---------- */
+function tileClick(i){
+  const cur = state.kingdoms[state.turnOrder[state.currentTurnIndex]];
+  if(!cur.human || state.gameOver) return;
+  const tile = state.tiles[i];
+
+  if(state.selected!==null && state.validMoves.includes(i)){
+    performMove(state.selected, i);
+    state.selected=null; state.validMoves=[];
+    renderAll();
+    return;
+  }
+  if(state.selected===i){ state.selected=null; state.validMoves=[]; renderAll(); return; }
+
+  if((tile.unit && tile.unit.owner===cur.id && !tile.unit.moved) || (tile.isCity && tile.owner===cur.id)){
+    state.selected = i;
+    state.validMoves = tile.unit ? computeValidMoves(i) : [];
+    renderAll();
+    return;
+  }
+  state.selected=null; state.validMoves=[];
+  renderAll();
+}
+
+function computeValidMoves(i){
+  const {c,r} = colRow(i);
+  const tile = state.tiles[i];
+  const owner = tile.unit.owner;
+  const out=[];
+  neighbors(c,r).forEach(n=>{
+    const nt = state.tiles[n.i];
+    if(nt.type===T.WATER || nt.type===T.MOUNTAIN) return;
+    if(tile.unit.type==='settler'){
+      if(nt.owner===null || nt.owner===owner) out.push(n.i);
+    } else {
+      out.push(n.i); // soldiers can move or attack any land tile
+    }
+  });
+  return out;
+}
+
+function trainUnit(cityIdx, unitKey){
+  const cur = state.kingdoms[state.turnOrder[state.currentTurnIndex]];
+  const ud = UNIT_DEF[unitKey];
+  const tile = state.tiles[cityIdx];
+  if(cur.gold < ud.cost || tile.unit) return;
+  snapshot();
+  cur.gold -= ud.cost;
+  tile.unit = {type:unitKey, owner:cur.id, moved:false};
+  renderAll();
+}
+
+function foundCity(settlerIdx){
+  const tile = state.tiles[settlerIdx];
+  const owner = tile.unit.owner;
+  snapshot();
+  tile.isCity = true;
+  tile.unit = null;
+  const {c,r} = colRow(settlerIdx);
+  neighbors(c,r).forEach(n=>{
+    const nt = state.tiles[n.i];
+    if(nt.type!==T.WATER && nt.type!==T.MOUNTAIN && nt.owner===null) nt.owner=owner;
+  });
+  state.selected=null; state.validMoves=[];
+  renderAll();
+}
+
+function disbandUnit(tileIdx){
+  snapshot();
+  state.tiles[tileIdx].unit=null;
+  state.selected=null; state.validMoves=[];
+  renderAll();
+}
+
+function performMove(fromIdx, toIdx){
+  snapshot();
+  const fromTile = state.tiles[fromIdx];
+  const toTile = state.tiles[toIdx];
+  const unit = fromTile.unit;
+  const attacker = UNIT_DEF[unit.type];
+
+  if(toTile.owner!==null && toTile.owner!==unit.owner){
+    // combat
+    let defStr = 0;
+    if(toTile.unit) defStr = UNIT_DEF[toTile.unit.type].str;
+    if(toTile.isCity) defStr += 1;
+    const rndFactor = (Math.random()-0.5)*0.6;
+    if(attacker.str + rndFactor > defStr){
+      const defenderKingdom = toTile.owner;
+      toTile.owner = unit.owner;
+      toTile.unit = {type:unit.type, owner:unit.owner, moved:true};
+      if(toTile.isCity){
+        checkElimination(defenderKingdom);
+      }
+      fromTile.unit = null;
+    } else {
+      fromTile.unit = null; // attacker destroyed
+    }
+  } else {
+    // move / claim
+    if(toTile.owner===null) toTile.owner = unit.owner;
+    toTile.unit = {type:unit.type, owner:unit.owner, moved:true};
+    fromTile.unit = null;
+  }
+  checkGameEnd();
+}
+
+function checkElimination(kid){
+  const stillHasCity = state.tiles.some(t=>t.isCity && t.owner===kid);
+  if(!stillHasCity){
+    state.kingdoms[kid].alive = false;
+    state.tiles.forEach(t=>{
+      if(t.owner===kid){ t.owner=null; t.unit=null; t.isCity=false; }
+    });
+  }
+}
+
+/* ---------- Turn flow ---------- */
+function endHumanTurn(){
+  snapshot();
+  advanceTurn();
+}
+function advanceTurn(){
+  const kid = state.turnOrder[state.currentTurnIndex];
+  const k = state.kingdoms[kid];
+  if(k.alive){
+    applyIncome(k);
+    resetMoves(kid);
+  }
+  nextTurnIndex();
+}
+function applyIncome(k){
+  const {income, upkeep} = computeIncome(k.id);
+  let bonus = 1;
+  if(!k.human){
+    if(k.difficulty==='hard') bonus=1.25;
+    else if(k.difficulty==='easy') bonus=0.9;
+  }
+  k.gold = Math.max(0, Math.round(k.gold + income*bonus - upkeep));
+}
+function resetMoves(kid){
+  state.tiles.forEach(t=>{ if(t.unit && t.unit.owner===kid) t.unit.moved=false; });
+}
+function nextTurnIndex(){
+  state.currentTurnIndex++;
+  if(state.currentTurnIndex >= state.turnOrder.length){
+    state.currentTurnIndex = 0;
+    state.round++;
+    if(state.round > 40){ endGameByScore(); return; }
+  }
+  const k = state.kingdoms[state.turnOrder[state.currentTurnIndex]];
+  if(!k.alive){ nextTurnIndex(); return; }
+  state.selected=null; state.validMoves=[];
+  renderAll();
+  if(!k.human && !state.gameOver){
+    setTimeout(()=>runCpuTurn(k.id), 450);
+  }
+}
+
+function checkGameEnd(){
+  const alive = state.kingdoms.filter(k=>k.alive);
+  const human = state.kingdoms.find(k=>k.human);
+  if(alive.length<=1){
+    state.gameOver=true;
+    showEnd(alive[0]);
+    return true;
+  }
+  if(human && !human.alive){
+    state.gameOver=true;
+    showEnd(null);
+    return true;
+  }
+  return false;
+}
+function endGameByScore(){
+  let best=null, bestScore=-1;
+  state.kingdoms.forEach(k=>{
+    if(!k.alive) return;
+    const score = state.tiles.filter(t=>t.owner===k.id).length;
+    if(score>bestScore){ bestScore=score; best=k; }
+  });
+  state.gameOver=true;
+  showEnd(best);
+}
+function showEnd(winner){
+  const human = state.kingdoms.find(k=>k.human);
+  const title = document.getElementById('endTitle');
+  const text = document.getElementById('endText');
+  if(winner && winner.human){
+    title.textContent='🏆 SEGER!';
+    title.style.color='var(--green-good)';
+    text.textContent = winner.name+' har erövrat världen!';
+  } else if(winner){
+    title.textContent='💀 NEDERLAG';
+    title.style.color='var(--red-bad)';
+    text.textContent = winner.name+' vann spelet.';
+  } else {
+    title.textContent='💀 NEDERLAG';
+    title.style.color='var(--red-bad)';
+    text.textContent = 'Ditt rike gick under.';
+  }
+  document.getElementById('endModal').classList.remove('hidden');
+  renderAll();
+}
+
+/* ---------- CPU AI ---------- */
+function runCpuTurn(kid){
+  const k = state.kingdoms[kid];
+  if(!k.alive || state.gameOver) return;
+  const diff = k.difficulty;
+  const attackChance = diff==='easy'?0.25 : diff==='hard'?0.9 : 0.6;
+  const trainChance  = diff==='easy'?0.4  : diff==='hard'?0.85: 0.6;
+
+  // Train units from cities
+  state.tiles.forEach((tile,i)=>{
+    if(tile.isCity && tile.owner===kid && !tile.unit && Math.random()<trainChance){
+      const numCities = state.tiles.filter(t=>t.isCity && t.owner===kid).length;
+      let pick = 'settler';
+      if(numCities>=2 || Math.random()<0.5){
+        const r=Math.random();
+        pick = diff==='hard' ? (r<0.5?'soldier2':r<0.85?'soldier3':'soldier1')
+             : (r<0.6?'soldier1':'soldier2');
+      }
+      const ud = UNIT_DEF[pick];
+      if(k.gold>=ud.cost){ k.gold-=ud.cost; tile.unit={type:pick, owner:kid, moved:false}; }
+    }
+  });
+
+  // Act with units
+  const unitTiles = [];
+  state.tiles.forEach((t,i)=>{ if(t.unit && t.unit.owner===kid && !t.unit.moved) unitTiles.push(i); });
+
+  unitTiles.forEach(i=>{
+    const tile = state.tiles[i];
+    if(!tile.unit) return;
+    const {c,r} = colRow(i);
+    const nbrs = neighbors(c,r).filter(n=>{
+      const nt=state.tiles[n.i]; return nt.type!==T.WATER && nt.type!==T.MOUNTAIN;
+    });
+    if(nbrs.length===0) return;
+
+    if(tile.unit.type==='settler'){
+      const unclaimed = nbrs.filter(n=>state.tiles[n.i].owner===null);
+      if(unclaimed.length>0){
+        const target = unclaimed[Math.floor(Math.random()*unclaimed.length)];
+        const nearCity = state.tiles.some((t2,ti)=>{
+          if(!t2.isCity) return false; const cc=colRow(ti);
+          const tc=colRow(target.i); return hexDist(tc.c,tc.r,cc.c,cc.r) < 2;
+        });
+        if(!nearCity && Math.random()<0.35){
+          tile.isCity=true; tile.unit=null;
+          const {c:fc,r:fr}=colRow(i);
+          neighbors(fc,fr).forEach(n2=>{ const nt2=state.tiles[n2.i]; if(nt2.type!==T.WATER&&nt2.type!==T.MOUNTAIN&&nt2.owner===null) nt2.owner=kid; });
+          return;
+        }
+        state.tiles[target.i].owner = kid;
+        state.tiles[target.i].unit = {type:'settler', owner:kid, moved:true};
+        tile.unit=null;
+      }
+      return;
+    }
+
+    // soldiers
+    const enemyTargets = nbrs.filter(n=>{
+      const nt=state.tiles[n.i]; return nt.owner!==null && nt.owner!==kid;
+    });
+    if(enemyTargets.length>0 && Math.random()<attackChance){
+      const target = enemyTargets[Math.floor(Math.random()*enemyTargets.length)];
+      performMove(i, target.i);
+      return;
+    }
+    const unclaimed = nbrs.filter(n=>state.tiles[n.i].owner===null);
+    if(unclaimed.length>0){
+      const target = unclaimed[Math.floor(Math.random()*unclaimed.length)];
+      state.tiles[target.i].owner = kid;
+      state.tiles[target.i].unit = {type:tile.unit.type, owner:kid, moved:true};
+      tile.unit=null;
+      return;
+    }
+    // wander
+    const own = nbrs.filter(n=>state.tiles[n.i].owner===kid && !state.tiles[n.i].unit);
+    if(own.length>0 && Math.random()<0.3){
+      const target = own[Math.floor(Math.random()*own.length)];
+      state.tiles[target.i].unit = {type:tile.unit.type, owner:kid, moved:true};
+      tile.unit=null;
+    }
+  });
+
+  if(checkGameEnd()) { renderAll(); return; }
+  advanceTurn();
+}
+
+/* ---------- Modals ---------- */
+function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
+function showDetails(){
+  const body = document.getElementById('detailsBody');
+  body.innerHTML='';
+  state.kingdoms.forEach(k=>{
+    const {income, upkeep} = computeIncome(k.id);
+    const tiles = state.tiles.filter(t=>t.owner===k.id).length;
+    const cities = state.tiles.filter(t=>t.isCity && t.owner===k.id).length;
+    const div=document.createElement('div');
+    div.style.marginBottom='10px';
+    div.innerHTML = `
+      <div style="color:${k.color}; font-family:'Press Start 2P'; font-size:11px; margin-bottom:4px;">${k.name}${k.human?'':' (CPU · '+k.difficulty+')'} ${k.alive?'':'☠'}</div>
+      <div class="row"><span>Guld</span><span>${k.gold}g</span></div>
+      <div class="row"><span>Städer / Fält</span><span>${cities} / ${tiles}</span></div>
+      <div class="row"><span style="color:var(--green-good)">Inkomst</span><span>+${income}g</span></div>
+      <div class="row total"><span style="color:var(--red-bad)">Upkeep</span><span>-${upkeep}g</span></div>
+    `;
+    body.appendChild(div);
+  });
+  document.getElementById('detailsModal').classList.remove('hidden');
+}
+</script>
+</body>
+</html>
