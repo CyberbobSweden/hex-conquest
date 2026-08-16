@@ -1,0 +1,14 @@
+{
+  "name": "Hex Conquest — Trollkarlens Valv",
+  "short_name": "Hex Conquest",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#050506",
+  "theme_color": "#1c1712",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

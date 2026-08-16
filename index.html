@@ -2,14 +2,23 @@
 <html lang="sv">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1c1712">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hex Conquest">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
 <title>Hex Conquest — Trollkarlens Valv</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
 :root{ --ink:#eae3d0; --panel:#1c1712; --gold:#f2c34d; --good:#7ec850; --bad:#e05a4e; --border:#5a4a34; }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;}
-html,body{margin:0;padding:0;height:100%;background:#050506;color:var(--ink);font-family:'VT323',monospace;font-size:20px;overflow:hidden;}
-#app{position:fixed;inset:0;display:flex;flex-direction:column;}
+html{height:100%;}
+body{margin:0;padding:0;height:100vh;height:100dvh;background:#050506;color:var(--ink);font-family:'VT323',monospace;font-size:20px;overflow:hidden;overscroll-behavior:none;touch-action:manipulation;}
+#app{position:fixed;inset:0;height:100vh;height:100dvh;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);}
 h1,h2,h3{font-family:'Press Start 2P',monospace;letter-spacing:1px;}
 
 #startScreen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -74,6 +83,7 @@ canvas{display:block;touch-action:none;image-rendering:pixelated;}
       </div>
       <div id="continuePanel" style="display:none;">
         <div class="field-label">Dina banor</div>
+        <div id="progressInfo" style="font-size:14px;color:#c8bda2;margin-bottom:8px;"></div>
         <div id="levelGrid"></div>
         <button class="btn small red" onclick="resetProfile()">🗑 Radera framsteg</button>
       </div>
@@ -161,17 +171,17 @@ canvas{display:block;touch-action:none;image-rendering:pixelated;}
 
 <script>
 /* ================= CONFIG ================= */
-const TS = 40;
+const TS = 30;
 const STEP_TIME = 150;
-const MONSTER_INTERVAL = 550;
+const MONSTER_INTERVAL = 620;
 const MONSTER_STEP_TIME = 340;
 const RES_SCALE = 2;
-const LIGHT_RADIUS = 4.6;
+const LIGHT_RADIUS = 5.6;
 
 const DIFFICULTIES = {
-  calm:   {label:'Lugn',    monsterMul:0.5, diamondMul:0.8, phaseCharges:4, zapCharges:5},
-  normal: {label:'Normal',  monsterMul:1.0, diamondMul:1.0, phaseCharges:2, zapCharges:3},
-  intense:{label:'Intensiv',monsterMul:1.7, diamondMul:1.25, phaseCharges:1, zapCharges:2},
+  calm:   {label:'Lugn',    monsterMul:0.5, diamondMul:0.8, phaseCharges:4, zapCharges:5, maxHealth:5},
+  normal: {label:'Normal',  monsterMul:1.0, diamondMul:1.0, phaseCharges:2, zapCharges:3, maxHealth:3},
+  intense:{label:'Intensiv',monsterMul:1.7, diamondMul:1.25, phaseCharges:1, zapCharges:2, maxHealth:2},
 };
 let difficulty = 'normal';
 
@@ -195,6 +205,7 @@ function onNameChange(){
   const p = loadProfile(profileName);
   if(p && p.maxLevel>0){
     panel.style.display='block';
+    document.getElementById('progressInfo').textContent = 'Högsta nivå du klarat: '+Math.max(0,p.maxLevel-1);
     const g=document.getElementById('levelGrid'); g.innerHTML='';
     for(let i=1;i<=p.maxLevel;i++){
       const b=document.createElement('button');
@@ -222,6 +233,7 @@ function continueGame(lvl){
   const p = loadProfile(profileName);
   if(!p) return;
   seed=p.seed; difficulty=p.difficulty||'normal'; levelNum=lvl;
+  tryFullscreen();
   launchGame();
 }
 
@@ -312,6 +324,8 @@ function playSfx(kind){
     case 'portal': tone(400,1300,0.32,'triangle',0.16,0); break;
     case 'push':   tone(140,90,0.1,'square',0.14,0); break;
     case 'squash': tone(160,50,0.22,'square',0.2,0); break;
+    case 'hurt':   tone(500,150,0.2,'square',0.2,0); break;
+    case 'heal':   tone(500,900,0.18,'triangle',0.16,0); break;
     case 'boom':   tone(110,40,0.4,'sawtooth',0.28,0); tone(80,30,0.4,'square',0.2,0.04); break;
     case 'death':  tone(320,50,0.5,'sawtooth',0.22,0); tone(220,40,0.5,'square',0.15,0.05); break;
     case 'win':    tone(523,523,0.12,'square',0.16,0); tone(659,659,0.12,'square',0.16,0.13); tone(784,784,0.22,'square',0.18,0.26); break;
@@ -319,11 +333,17 @@ function playSfx(kind){
 }
 
 /* ================= SETUP ================= */
+function tryFullscreen(){
+  const el = document.documentElement;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+  if(req){ try{ req.call(el).catch(()=>{}); }catch(e){} }
+}
 function startGame(){
   seed = document.getElementById('seedInput').value || 'abcde';
   levelNum=1;
   profileName = document.getElementById('nameInput').value.trim();
   localStorage.setItem('hc_lastName', profileName);
+  tryFullscreen();
   launchGame();
 }
 function launchGame(){
@@ -350,6 +370,7 @@ function backToMenu(){
   running=false;
   replayTimers.forEach(t=>clearTimeout(t)); replayTimers=[];
   bgMusic.pause();
+  try{ document.exitFullscreen?.(); }catch(e){}
   document.getElementById('gameScreen').style.display='none';
   document.getElementById('startScreen').style.display='flex';
   onNameChange();
@@ -472,6 +493,11 @@ function buildCaveFull(seedBase, w, h, levelNum, diamondMul, isPrimary){
       markOccupied(cave,cell.x,cell.y,'diamond');
       diamondPositions.push(cell);
     }
+    const potionCount = 1 + (rnd()<0.4?1:0);
+    for(let i=0;i<potionCount;i++){
+      const cell=cave.freeCell(); if(!cell) continue;
+      markOccupied(cave,cell.x,cell.y,'potion');
+    }
     let exitPos=null;
     if(isPrimary){
       exitPos = {x:w-2,y:h-2};
@@ -537,7 +563,8 @@ function buildLevel(){
   phaseCharges = d.phaseCharges; zapCharges = d.zapCharges;
   phaseMode=false;
   particles=[];
-  player = {x:1,y:1,px:1,py:1,moving:false,from:{x:1,y:1},to:{x:1,y:1},t:0,queue:[],dir:1,walkPhase:0,dead:false};
+  player = {x:1,y:1,px:1,py:1,moving:false,from:{x:1,y:1},to:{x:1,y:1},t:0,queue:[],dir:1,walkPhase:0,dead:false,
+    health:d.maxHealth, maxHealth:d.maxHealth, invulnUntil:0};
   monstersByCave = {A:monstersA, B:monstersB};
   visited = {A:new Set(), B:new Set()};
   const viewTilesX = canvas.width/RES_SCALE/TS, viewTilesY = canvas.height/RES_SCALE/TS;
@@ -565,6 +592,9 @@ function restartLevel(){
   gameRnd = seededRandom(seed+':run'+levelNum);
   player.x=1; player.y=1; player.px=1; player.py=1;
   player.moving=false; player.queue=[]; player.dead=false;
+  player.maxHealth = DIFFICULTIES[difficulty].maxHealth;
+  player.health = player.maxHealth;
+  player.invulnUntil = 0;
   monstersByCave = {
     A: snap.monstersByCave.A.map(m=>({...m,px:m.x,py:m.y,moving:false,from:{x:m.x,y:m.y},to:{x:m.x,y:m.y},t:0,alive:true})),
     B: snap.monstersByCave.B.map(m=>({...m,px:m.x,py:m.y,moving:false,from:{x:m.x,y:m.y},to:{x:m.x,y:m.y},t:0,alive:true})),
@@ -584,8 +614,9 @@ function nextLevel(){ closeModal('winModal'); levelNum++; buildLevel(); running=
 /* ================= HUD ================= */
 function updateHud(){
   const caveName = activeCave==='A' ? 'Övre grottan' : 'Undre grottan';
+  const hearts = '❤️'.repeat(Math.max(0,player.health))+'🖤'.repeat(Math.max(0,player.maxHealth-player.health));
   document.getElementById('hudInfo').innerHTML =
-    `N${levelNum} · ${caveName}<br>💎${diamondsCollected}/${level.diamondsNeeded} ⚡${zapCharges}`;
+    `N${levelNum} · ${caveName}<br>${hearts}<br>💎${diamondsCollected}/${level.diamondsNeeded} ⚡${zapCharges}`;
   const pb = document.getElementById('phaseBtn');
   pb.textContent = '🌀('+phaseCharges+')';
   pb.disabled = phaseCharges<=0;
@@ -628,6 +659,7 @@ function startReplay(code){
   catch(e){ alert('Ogiltig repris-kod.'); return; }
   seed = data.seed; difficulty = data.difficulty || 'normal';
   levelNum=1; isReplaying=true; recording=false;
+  tryFullscreen();
   ensureAudioStarted();
   enterGameScreen();
   document.getElementById('replayBanner').style.display='block';
@@ -772,6 +804,20 @@ function attemptDirectMove(tx,ty,dx,dy){
     startPlayerStep(tx,ty);
     return;
   }
+  if(cell.type==='potion'){
+    cell.type='floor';
+    spawnParticles(tx,ty,'#ff8fa3',8);
+    if(player.health<player.maxHealth){
+      player.health++;
+      showToast('❤️ Läkte ett hjärta!');
+      playSfx('heal');
+    } else {
+      showToast('❤️ Redan fullt liv');
+    }
+    updateHud();
+    startPlayerStep(tx,ty);
+    return;
+  }
   if(cell.type==='dirt'){ cell.type='floor'; startPlayerStep(tx,ty); return; }
   if(cell.type==='floor'){ startPlayerStep(tx,ty); return; }
 }
@@ -873,7 +919,7 @@ function bfsPath(sx,sy,tx,ty){
       if(!inBounds(nx,ny)) continue;
       if(visitedQ.has(key(nx,ny))) continue;
       const c=cellAt(nx,ny);
-      const walkable = c.type==='floor'||c.type==='dirt'||c.type==='diamond'||c.type==='portal'||(c.type==='exit'&&level.exit.unlocked);
+      const walkable = c.type==='floor'||c.type==='dirt'||c.type==='diamond'||c.type==='portal'||c.type==='potion'||(c.type==='exit'&&level.exit.unlocked);
       if(!walkable) continue;
       if(isMonsterAt(nx,ny)) continue;
       visitedQ.add(key(nx,ny));
@@ -920,7 +966,7 @@ function monsterTick(){
       if(dx!==0||dy!==0){
         const nx=m.x+dx, ny=m.y+dy;
         m.from={x:m.x,y:m.y}; m.to={x:nx,y:ny}; m.x=nx; m.y=ny; m.t=0; m.moving=true;
-        if(targetHere && nx===player.x && ny===player.y && !player.dead){ killPlayer('Ett monster tog dig!'); }
+        if(targetHere && nx===player.x && ny===player.y && !player.dead){ damagePlayer('Ett monster tog dig!'); }
       }
     });
   });
@@ -940,6 +986,21 @@ function killPlayer(msg){
   playSfx('death');
   document.getElementById('deadText').textContent=msg;
   document.getElementById('deadModal').classList.remove('hidden');
+}
+function damagePlayer(msg){
+  if(player.dead) return;
+  const now = performance.now();
+  if(now < player.invulnUntil) return;
+  player.health--;
+  spawnParticles(player.x,player.y,'#e05a4e',10);
+  if(player.health<=0){
+    killPlayer(msg);
+  } else {
+    player.invulnUntil = now+1100;
+    playSfx('hurt');
+    showToast('💔 '+msg+' ('+player.health+'/'+player.maxHealth+' liv)');
+    updateHud();
+  }
 }
 function winLevel(){
   running=false;
@@ -1086,6 +1147,7 @@ function drawTile(c,cell,px,py,x,y,phaseHi,lit){
     case 'floor': drawFloor(c,cell); break;
     case 'boulder': drawFloor(c,cell); drawBoulder(c,cell); break;
     case 'diamond': drawFloor(c,cell); drawDiamond(c,cell); break;
+    case 'potion': drawFloor(c,cell); drawPotion(c,cell); break;
     case 'exit': drawExit(c); break;
     case 'portal': drawFloor(c,cell); drawPortal(c); break;
   }
@@ -1178,45 +1240,73 @@ function drawExit(c){
     c.fillText('🔒', cx, cy+1);
   }
 }
+function drawPotion(c,cell){
+  const t = performance.now()*0.003 + (cell.seed||0)*10;
+  const bob = Math.sin(t)*1.5;
+  const PU = TS/16;
+  function R(x,y,w,h,color){ c.fillStyle=color; c.fillRect(Math.round((8+x)*PU),Math.round((8+y+bob/PU*0)*PU+bob),Math.ceil(w*PU),Math.ceil(h*PU)); }
+  R(-3,-3,2,2,'#ff6b81'); R(1,-3,2,2,'#ff6b81');
+  R(-3,-1,6,2,'#ff4d68'); R(-2,1,4,1,'#ff4d68'); R(-1,2,2,1,'#ff4d68');
+  c.fillStyle='rgba(255,255,255,0.5)'; c.fillRect(Math.round((8-2)*PU),Math.round((8-2)*PU+bob),Math.ceil(PU),Math.ceil(PU));
+}
 function drawPlayer(c,px,py){
+  const PU = TS/16;
   c.save(); c.translate(px+TS/2, py+TS/2);
   const stepFrame = player.moving ? (Math.floor(player.walkPhase*6)%2) : 0;
-  const bob = player.moving ? (stepFrame? -2:0) : Math.round(Math.sin(player.walkPhase*3)*1.2);
-  c.translate(0,bob);
+  const bob = player.moving ? (stepFrame? -1:0) : Math.round(Math.sin(player.walkPhase*3)*1);
+  c.translate(0,bob*PU);
   c.scale(player.dir,1);
   if(player.dead) c.globalAlpha=0.3;
+  else if(performance.now() < player.invulnUntil){
+    c.globalAlpha *= (Math.floor(performance.now()/90)%2===0 ? 1 : 0.4);
+  }
   // torch glow
-  const glowR = TS*1.4;
+  const glowR = TS*1.7;
   const grad = c.createRadialGradient(0,0,4,0,0,glowR);
-  grad.addColorStop(0,'rgba(255,210,120,0.16)'); grad.addColorStop(1,'rgba(255,210,120,0)');
+  grad.addColorStop(0,'rgba(210,230,255,0.18)'); grad.addColorStop(1,'rgba(210,230,255,0)');
   c.fillStyle=grad; c.beginPath(); c.arc(0,0,glowR,0,7); c.fill();
+  // shadow
   c.save(); c.globalAlpha*=0.35; c.fillStyle='#000';
-  c.fillRect(-TS*0.18,TS*0.28,TS*0.36,TS*0.08); c.restore();
-  c.fillStyle='#2e2350';
-  c.beginPath(); c.moveTo(-TS*0.16,-TS*0.08); c.lineTo(-TS*0.24,TS*0.24); c.lineTo(-TS*0.06,TS*0.2); c.closePath(); c.fill();
-  c.fillStyle='#241a30';
-  const legOff = stepFrame? 4:-4;
-  c.fillRect(-6+legOff*0.2,TS*0.18,5,TS*0.14);
-  c.fillRect(2-legOff*0.2,TS*0.18,5,TS*0.14);
-  c.fillStyle='#5a3e8a';
-  c.beginPath();
-  c.moveTo(0,-TS*0.12); c.lineTo(TS*0.2,TS*0.22); c.lineTo(-TS*0.2,TS*0.22); c.closePath(); c.fill();
-  c.fillStyle='#4a3070';
-  c.beginPath(); c.moveTo(0,-TS*0.12); c.lineTo(TS*0.06,TS*0.22); c.lineTo(-TS*0.06,TS*0.22); c.closePath(); c.fill();
-  c.fillStyle='#f2c34d'; c.fillRect(-TS*0.14,TS*0.02,TS*0.28,3);
-  c.strokeStyle='#8a5a2e'; c.lineWidth=3; c.lineCap='round';
-  c.beginPath(); c.moveTo(TS*0.24,TS*0.2); c.lineTo(TS*0.24,-TS*0.28); c.stroke();
-  const glow = 0.6+Math.sin(performance.now()*0.005)*0.4;
-  c.fillStyle='rgba(95,214,232,'+glow+')';
-  c.beginPath(); c.arc(TS*0.24,-TS*0.3,4,0,7); c.fill();
-  c.fillStyle='#f0d3a8';
-  c.beginPath(); c.arc(0,-TS*0.2,TS*0.13,0,7); c.fill();
-  c.fillStyle='#5a3e8a';
-  c.beginPath(); c.moveTo(-TS*0.17,-TS*0.26); c.lineTo(TS*0.17,-TS*0.26); c.lineTo(TS*0.04,-TS*0.6); c.closePath(); c.fill();
-  c.fillStyle='#f2c34d'; c.fillRect(-TS*0.19,-TS*0.27,TS*0.38,3);
-  c.fillStyle='#fff4c2';
-  c.beginPath(); c.arc(TS*0.02,-TS*0.42,2.2,0,7); c.fill();
-  c.fillStyle='#1a1420'; c.fillRect(2,-TS*0.21,2,2);
+  c.fillRect(-4.5*PU,7*PU,9*PU,2*PU); c.restore();
+
+  function R(x,y,w,h,color){ c.fillStyle=color; c.fillRect(Math.round(x*PU),Math.round(y*PU),Math.ceil(w*PU),Math.ceil(h*PU)); }
+
+  const legOff = stepFrame? 1:0;
+  // cape (behind body)
+  R(-7,-1,3,8,'#1c3350');
+  // staff (behind, to the right) with lantern top
+  R(6,-4,1,10,'#16202b');
+  R(5,-8,3,3,'#0e1620');
+  const glow = 0.55+Math.sin(performance.now()*0.006)*0.45;
+  c.fillStyle='rgba(207,232,255,'+glow+')';
+  c.fillRect(Math.round(5.5*PU),Math.round(-7.5*PU),Math.ceil(1*PU),Math.ceil(1*PU));
+  c.fillRect(Math.round(7*PU),Math.round(-7.5*PU),Math.ceil(1*PU),Math.ceil(1*PU));
+  // boots
+  R(-4-legOff,7,3,2,'#16202b');
+  R(1+legOff,7,3,2,'#16202b');
+  // robe: shoulders + tapered body
+  R(-7,-2,14,2,'#3a6ea8');
+  R(-6,0,12,7,'#3a6ea8');
+  R(-1,-2,2,9,'#244a78');
+  R(-6,0,1,7,'#5a8cc4');
+  // head
+  R(-3,-6,6,4,'#f0c9a0');
+  R(2,-6,1,4,'#d1a97e');
+  // eyes
+  R(-2,-5,1,1,'#16202b');
+  R(1,-5,1,1,'#16202b');
+  // beard (drawn over lower face and chest)
+  R(-4,-2,8,3,'#eef3f7');
+  R(-3,1,6,3,'#dbe6f0');
+  R(-2,4,4,2,'#c2d0dc');
+  // hat: brim + pointed hooked tip
+  R(-6,-6,12,1,'#6fb0e0');
+  R(-4,-8,6,1,'#4a7fc4');
+  R(-3,-9,5,1,'#4a7fc4');
+  R(-2,-10,4,1,'#2e5688');
+  R(-1,-11,2,1,'#1c3a5e');
+  R(0,-11,2,1,'#1c3a5e');
+  R(-4,-8,1,3,'#8fc7f0');
   c.restore();
 }
 function drawMonster(c,m,px,py){
