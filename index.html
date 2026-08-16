@@ -25,12 +25,15 @@ h1,h2,h3{font-family:'Press Start 2P',monospace;letter-spacing:1px;}
 .btn:disabled{opacity:.35;cursor:default;}
 .btn.small{font-size:10px;padding:8px;}
 .btn.gold{background:#6b4e1e;}
+.btn.red{background:#5a2e2e;}
 .btn.start{width:100%;background:#3a5e3a;font-size:14px;padding:14px;margin-top:6px;}
 .diffRow{display:flex;gap:6px;margin-bottom:14px;}
 .diffRow .btn{flex:1;background:#241d16;}
 .diffRow .btn.active{background:#3a5e3a;}
 .helpText{font-size:15px;color:#c8bda2;line-height:1.6;margin-top:10px;}
 .helpText b{color:var(--gold);}
+#levelGrid{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+#levelGrid .btn{background:#6b4e1e;}
 
 #gameScreen{flex:1;display:none;flex-direction:column;min-height:0;}
 #topbar{display:flex;align-items:center;gap:5px;padding:6px 7px;background:var(--panel);border-bottom:4px solid var(--border);flex-wrap:wrap;z-index:5;}
@@ -63,25 +66,40 @@ canvas{display:block;touch-action:none;image-rendering:pixelated;}
   <div id="startScreen">
     <h1>⚔ HEX CONQUEST ⚔</h1>
     <div class="sub">Trollkarlens Valv — samla diamanter, undvik monster</div>
+
     <div class="panel-box">
-      <div class="field-label">Frö (seed)</div>
+      <div class="field-label">Spelarnamn (sparar dina framsteg lokalt)</div>
+      <div class="seed-row">
+        <input id="nameInput" type="text" placeholder="Ditt namn" oninput="onNameChange()">
+      </div>
+      <div id="continuePanel" style="display:none;">
+        <div class="field-label">Dina banor</div>
+        <div id="levelGrid"></div>
+        <button class="btn small red" onclick="resetProfile()">🗑 Radera framsteg</button>
+      </div>
+    </div>
+
+    <div class="panel-box">
+      <div class="field-label">Nytt äventyr — frö (seed)</div>
       <div class="seed-row">
         <input id="seedInput" type="text" value="">
         <button class="btn gold small" onclick="randomSeed()">🎲</button>
       </div>
       <div class="field-label">Svårighet</div>
       <div class="diffRow" id="diffRow"></div>
-      <button class="btn start" onclick="startGame()">▶ Starta äventyret</button>
+      <button class="btn start" onclick="startGame()">▶ Starta nytt äventyr</button>
       <div class="helpText">
-        <b>Samma frö = samma värld.</b> Dela fröet med en kompis för att spela exakt samma karta som du.<br><br>
-        👆 Tryck där du vill gå. 🪨 Gå in i en sten = knuffa den (även på monster = krossar dem!).<br>
-        ⚡ Tryck på ett monster intill dig = attackera det (kräver laddning).<br>
-        🌀 Fasa: tryck knappen, peka sen rakt genom en vägg i samma rad/kolumn — du byter plats med det som finns bakom den.<br>
-        🔵 Portalen tar dig mellan de två sammanlänkade grottorna.<br>
-        ✋ Dra på skärmen för att titta runt.<br>
-        🔊 Musik & ljud sätts på automatiskt — tryck högtalarikonen för att stänga av.
+        <b>Samma frö = samma värld.</b> Dela fröet med en kompis för att spela exakt samma karta.
+        Ett nytt frö skriver över tidigare sparad framgång för det namnet.<br><br>
+        👆 Tryck där du vill gå. 🪨 Knuffa stenar (även på monster = krossar dem!).<br>
+        💣 Vissa stenar är <b>bomber</b> — knuffa dem in i en vägg så spränger de bort den!<br>
+        ⚡ Tryck på ett monster intill dig för att attackera (kräver laddning).<br>
+        🌀 Fasa: tryck knappen, peka sen rakt genom en vägg i din rad/kolumn.<br>
+        🔵 Portalen länkar de två grottorna. 🕯️ Din trollkarl bär ett ljus — mörkret döljer det du inte utforskat än.<br>
+        Banorna är alltid garanterat lösbara, och växer större för varje nivå.
       </div>
     </div>
+
     <div class="panel-box">
       <div class="field-label">👀 Titta på någon annans repris</div>
       <div class="seed-row">
@@ -130,7 +148,7 @@ canvas{display:block;touch-action:none;image-rendering:pixelated;}
   <div class="modal hidden" id="replayModal">
     <div class="modal-box">
       <h2 style="color:var(--gold)">🎬 DIN REPRIS-KOD</h2>
-      <p>Kopiera koden och skicka till en kompis — de klistrar in den på startskärmen för att titta på ditt spel.</p>
+      <p>Kopiera koden och skicka till en kompis — de klistrar in den på startskärmen.</p>
       <textarea id="replayCodeBox" readonly></textarea>
       <div class="btnRow">
         <button class="btn small" onclick="copyReplayCode()">📋 Kopiera</button>
@@ -147,7 +165,8 @@ const TS = 40;
 const STEP_TIME = 150;
 const MONSTER_INTERVAL = 550;
 const MONSTER_STEP_TIME = 340;
-const RES_SCALE = 2; // low-res render then upscale for chunky retro look
+const RES_SCALE = 2;
+const LIGHT_RADIUS = 4.6;
 
 const DIFFICULTIES = {
   calm:   {label:'Lugn',    monsterMul:0.5, diamondMul:0.8, phaseCharges:4, zapCharges:5},
@@ -163,6 +182,49 @@ function randomSeed(){const c='abcdefghjkmnpqrstuvwxyz23456789';let s='';for(let
 randomSeed();
 let gameRnd = Math.random;
 
+/* ================= PROFILE (save / continue) ================= */
+let profileName = '';
+function loadProfile(name){
+  if(!name) return null;
+  try{ return JSON.parse(localStorage.getItem('hc_profile_'+name)); }catch(e){ return null; }
+}
+function onNameChange(){
+  profileName = document.getElementById('nameInput').value.trim();
+  localStorage.setItem('hc_lastName', profileName);
+  const panel=document.getElementById('continuePanel');
+  const p = loadProfile(profileName);
+  if(p && p.maxLevel>0){
+    panel.style.display='block';
+    const g=document.getElementById('levelGrid'); g.innerHTML='';
+    for(let i=1;i<=p.maxLevel;i++){
+      const b=document.createElement('button');
+      b.className='btn small'; b.textContent='Nivå '+i;
+      b.onclick=()=>continueGame(i);
+      g.appendChild(b);
+    }
+  } else {
+    panel.style.display='none';
+  }
+}
+function resetProfile(){
+  if(!profileName) return;
+  localStorage.removeItem('hc_profile_'+profileName);
+  onNameChange();
+}
+function recordProgress(){
+  if(isReplaying || !profileName) return;
+  const p = loadProfile(profileName) || {maxLevel:1};
+  p.seed=seed; p.difficulty=difficulty;
+  p.maxLevel = Math.max(p.maxLevel||1, levelNum+1);
+  localStorage.setItem('hc_profile_'+profileName, JSON.stringify(p));
+}
+function continueGame(lvl){
+  const p = loadProfile(profileName);
+  if(!p) return;
+  seed=p.seed; difficulty=p.difficulty||'normal'; levelNum=lvl;
+  launchGame();
+}
+
 /* ================= DIFFICULTY UI ================= */
 function renderDiffRow(){
   const row=document.getElementById('diffRow'); row.innerHTML='';
@@ -175,6 +237,11 @@ function renderDiffRow(){
   });
 }
 renderDiffRow();
+(function initName(){
+  const saved = localStorage.getItem('hc_lastName')||'';
+  document.getElementById('nameInput').value = saved;
+  onNameChange();
+})();
 
 /* ================= GAME STATE ================= */
 let seed='';
@@ -193,6 +260,7 @@ let running=false;
 let camX=0, camY=0, manualCam=false;
 let canvas, ctx, lowCanvas, lowCtx;
 let lastTime=0;
+let visited={A:new Set(), B:new Set()};
 
 /* replay */
 let recording=false, isReplaying=false;
@@ -225,8 +293,6 @@ function ensureAudioStarted(){
 function playSfx(kind){
   if(muted || !audioCtx) return;
   const t0 = audioCtx.currentTime;
-  const gain = audioCtx.createGain();
-  gain.connect(audioCtx.destination);
   function tone(freqFrom, freqTo, dur, type, vol, delay){
     const osc = audioCtx.createOscillator();
     const g = audioCtx.createGain();
@@ -246,6 +312,7 @@ function playSfx(kind){
     case 'portal': tone(400,1300,0.32,'triangle',0.16,0); break;
     case 'push':   tone(140,90,0.1,'square',0.14,0); break;
     case 'squash': tone(160,50,0.22,'square',0.2,0); break;
+    case 'boom':   tone(110,40,0.4,'sawtooth',0.28,0); tone(80,30,0.4,'square',0.2,0.04); break;
     case 'death':  tone(320,50,0.5,'sawtooth',0.22,0); tone(220,40,0.5,'square',0.15,0.05); break;
     case 'win':    tone(523,523,0.12,'square',0.16,0); tone(659,659,0.12,'square',0.16,0.13); tone(784,784,0.22,'square',0.18,0.26); break;
   }
@@ -254,7 +321,13 @@ function playSfx(kind){
 /* ================= SETUP ================= */
 function startGame(){
   seed = document.getElementById('seedInput').value || 'abcde';
-  levelNum=1; isReplaying=false; recording=true; actions=[];
+  levelNum=1;
+  profileName = document.getElementById('nameInput').value.trim();
+  localStorage.setItem('hc_lastName', profileName);
+  launchGame();
+}
+function launchGame(){
+  isReplaying=false; recording=true; actions=[];
   document.getElementById('replayBanner').style.display='none';
   ensureAudioStarted();
   enterGameScreen();
@@ -279,6 +352,7 @@ function backToMenu(){
   bgMusic.pause();
   document.getElementById('gameScreen').style.display='none';
   document.getElementById('startScreen').style.display='flex';
+  onNameChange();
   closeModal('deadModal'); closeModal('winModal'); closeModal('replayModal');
 }
 function resizeCanvas(){
@@ -316,80 +390,147 @@ function generateCave(rnd, w, h){
 }
 function markOccupied(c,x,y,type){ c.grid[y][x].type=type; c.occupied.add(c.key(x,y)); }
 
-function buildLevel(){
-  const d = DIFFICULTIES[difficulty];
-  const w = Math.min(8 + Math.floor(levelNum/2), 13);
-  const h = Math.min(8 + Math.floor(levelNum/2), 11);
-  const rndA = seededRandom(seed+':A:lvl'+levelNum);
-  const rndB = seededRandom(seed+':B:lvl'+levelNum);
-  const caveA = generateCave(rndA, w, h);
-  const caveB = generateCave(rndB, w, h);
+/* ---- solvability ---- */
+function reachableSet(grid,w,h,spawn){
+  const visitedS = new Set([spawn.x+','+spawn.y]);
+  const q=[spawn]; let head=0;
+  while(head<q.length){
+    const cur=q[head++];
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+    for(const [dx,dy] of dirs){
+      const nx=cur.x+dx, ny=cur.y+dy;
+      if(nx<0||ny<0||nx>=w||ny>=h) continue;
+      const key=nx+','+ny;
+      if(visitedS.has(key)) continue;
+      const t=grid[ny][nx].type;
+      if(t==='wall'||t==='boulder') continue;
+      visitedS.add(key);
+      q.push({x:nx,y:ny});
+    }
+  }
+  return visitedS;
+}
+function isSolvable(grid,w,h,diamonds,exitPos,portalPos,spawn){
+  const r = reachableSet(grid,w,h,spawn);
+  for(const d of diamonds) if(!r.has(d.x+','+d.y)) return false;
+  if(exitPos && !r.has(exitPos.x+','+exitPos.y)) return false;
+  if(portalPos && !r.has(portalPos.x+','+portalPos.y)) return false;
+  return true;
+}
+function carveLine(grid,x0,y0,x1,y1,w,h){
+  let dx=Math.abs(x1-x0), dy=Math.abs(y1-y0);
+  let sx = x0<x1?1:-1, sy = y0<y1?1:-1;
+  let err = dx-dy, x=x0, y=y0;
+  while(true){
+    if(x>0&&x<w-1&&y>0&&y<h-1){
+      const c=grid[y][x];
+      if(c.type==='wall'||c.type==='boulder') c.type='floor';
+    }
+    if(x===x1&&y===y1) break;
+    const e2=2*err;
+    if(e2>-dy){ err-=dy; x+=sx; }
+    if(e2<dx){ err+=dx; y+=sy; }
+  }
+}
+function ensureReachable(grid,w,h,spawn,target){
+  if(!target) return;
+  if(!isSolvable(grid,w,h,[target],null,null,spawn)) carveLine(grid,spawn.x,spawn.y,target.x,target.y,w,h);
+}
 
-  function populate(c, isPrimary){
-    const rnd=c.rnd;
+/* ---- build one cave, retrying until solvable, with guaranteed fallback ---- */
+function buildCaveFull(seedBase, w, h, levelNum, diamondMul, isPrimary){
+  const spawn = {x:1,y:1};
+  let last=null;
+  for(let attempt=0; attempt<15; attempt++){
+    const rnd = seededRandom(seedBase+':try'+attempt);
+    const cave = generateCave(rnd,w,h);
+    markOccupied(cave,1,1,'floor');
+
     const clumps = 2+Math.floor(levelNum/2);
     for(let i=0;i<clumps;i++){
-      const cell=c.freeCell(); if(!cell) continue;
+      const cell=cave.freeCell(); if(!cell) continue;
       const len=1+Math.floor(rnd()*3);
       let cx=cell.x, cy=cell.y;
       for(let j=0;j<len;j++){
-        if(cx<=0||cy<=0||cx>=c.w-1||cy>=c.h-1) break;
-        markOccupied(c,cx,cy,'wall');
+        if(cx<=0||cy<=0||cx>=w-1||cy>=h-1) break;
+        markOccupied(cave,cx,cy,'wall');
         const dir=Math.floor(rnd()*4);
         cx += dir===0?1:dir===1?-1:0;
         cy += dir===2?1:dir===3?-1:0;
       }
     }
     const boulderCount = 3+Math.floor(levelNum*0.6);
-    for(let i=0;i<boulderCount;i++){ const cell=c.freeCell(); if(cell) markOccupied(c,cell.x,cell.y,'boulder'); }
-    const diamondTotal = Math.round((3+levelNum*0.4)*d.diamondMul);
-    let placed=0;
-    for(let i=0;i<diamondTotal;i++){ const cell=c.freeCell(); if(cell){ markOccupied(c,cell.x,cell.y,'diamond'); placed++; } }
-    return placed;
+    for(let i=0;i<boulderCount;i++){
+      const cell=cave.freeCell(); if(!cell) continue;
+      markOccupied(cave,cell.x,cell.y,'boulder');
+      if(rnd()<0.25) cave.grid[cell.y][cell.x].bomb=true;
+    }
+    const diamondTotal = Math.round((3+levelNum*0.4)*diamondMul);
+    const diamondPositions=[];
+    for(let i=0;i<diamondTotal;i++){
+      const cell=cave.freeCell(); if(!cell) continue;
+      markOccupied(cave,cell.x,cell.y,'diamond');
+      diamondPositions.push(cell);
+    }
+    let exitPos=null;
+    if(isPrimary){
+      exitPos = {x:w-2,y:h-2};
+      markOccupied(cave, exitPos.x, exitPos.y, 'exit');
+    }
+    let portalPos = cave.freeCell({x:1,y:1},3) || {x:Math.floor(w/2),y:Math.floor(h/2)};
+    markOccupied(cave, portalPos.x, portalPos.y, 'portal');
+
+    const result = {grid:cave.grid, diamondPositions, exitPos, portalPos};
+    if(isSolvable(cave.grid,w,h,diamondPositions,exitPos,portalPos,spawn)) return result;
+    last = result;
   }
+  // fallback: carve guaranteed corridors so nothing is ever unreachable
+  last.diamondPositions.forEach(d=>ensureReachable(last.grid,w,h,spawn,d));
+  ensureReachable(last.grid,w,h,spawn,last.exitPos);
+  ensureReachable(last.grid,w,h,spawn,last.portalPos);
+  return last;
+}
 
-  // player spawn in cave A
-  markOccupied(caveA,1,1,'floor');
-  const diamondsA = populate(caveA);
-  const diamondsB = populate(caveB);
+function buildLevel(){
+  const d = DIFFICULTIES[difficulty];
+  const w = Math.min(8 + Math.floor(levelNum*0.8), 26);
+  const h = Math.min(8 + Math.floor(levelNum*0.6), 20);
 
-  // exit far corner of cave A
-  const ex=w-2, ey=h-2;
-  markOccupied(caveA, ex, ey, 'exit');
+  const caveAResult = buildCaveFull(seed+':A:lvl'+levelNum, w, h, levelNum, d.diamondMul, true);
+  const caveBResult = buildCaveFull(seed+':B:lvl'+levelNum, w, h, levelNum, d.diamondMul, false);
 
-  // portals
-  let portalA = caveA.freeCell({x:1,y:1}, 3);
-  if(!portalA) portalA={x:Math.floor(w/2),y:Math.floor(h/2)};
-  markOccupied(caveA, portalA.x, portalA.y, 'portal');
-  markOccupied(caveB, 1, 1, 'floor');
-  let portalB = caveB.freeCell({x:1,y:1}, 3);
-  if(!portalB) portalB={x:Math.floor(w/2),y:Math.floor(h/2)};
-  markOccupied(caveB, portalB.x, portalB.y, 'portal');
-
-  // monsters
   gameRnd = seededRandom(seed+':run'+levelNum);
-  function spawnMonsters(c, count, avoid){
+  function spawnMonsters(grid, count, avoid){
+    const rnd2 = gameRnd;
+    const occupied = new Set();
     const list=[];
-    for(let i=0;i<count;i++){
-      const cell=c.freeCell(avoid, 4); if(!cell) continue;
-      markOccupied(c, cell.x, cell.y, 'floor');
-      list.push({x:cell.x,y:cell.y,px:cell.x,py:cell.y,
-        type: gameRnd()<Math.min(0.75,0.15+levelNum*0.08)?'chaser':'wanderer',
-        moving:false,from:{x:cell.x,y:cell.y},to:{x:cell.x,y:cell.y},t:0,alive:true,bob:gameRnd()*10});
+    let tries=0;
+    while(list.length<count && tries<400){
+      tries++;
+      const x=1+Math.floor(rnd2()*(w-2)), y=1+Math.floor(rnd2()*(h-2));
+      const key=x+','+y;
+      if(occupied.has(key)) continue;
+      if(grid[y][x].type!=='dirt' && grid[y][x].type!=='floor') continue;
+      if(avoid && (Math.abs(x-avoid.x)+Math.abs(y-avoid.y))<4) continue;
+      occupied.add(key);
+      grid[y][x].type='floor';
+      list.push({x,y,px:x,py:y,
+        type: rnd2()<Math.min(0.75,0.15+levelNum*0.08)?'chaser':'wanderer',
+        moving:false,from:{x,y},to:{x,y},t:0,alive:true,bob:rnd2()*10});
     }
     return list;
   }
-  const totalMonsters = Math.min(9, Math.round((1+levelNum*0.6)*d.monsterMul));
-  const monstersA = spawnMonsters(caveA, Math.ceil(totalMonsters*0.6), {x:1,y:1});
-  const monstersB = spawnMonsters(caveB, Math.floor(totalMonsters*0.4), {x:1,y:1});
+  const totalMonsters = Math.min(10, Math.round((1+levelNum*0.6)*d.monsterMul));
+  const monstersA = spawnMonsters(caveAResult.grid, Math.ceil(totalMonsters*0.6), {x:1,y:1});
+  const monstersB = spawnMonsters(caveBResult.grid, Math.floor(totalMonsters*0.4), {x:1,y:1});
 
   level = {
     w,h,
-    caves:{A:caveA.grid, B:caveB.grid},
-    portals:{A:portalA, B:portalB},
-    exit:{x:ex,y:ey,unlocked:false},
-    diamondsNeeded: Math.max(4, Math.ceil((diamondsA+diamondsB)*0.6)),
-    diamondsTotal: diamondsA+diamondsB,
+    caves:{A:caveAResult.grid, B:caveBResult.grid},
+    portals:{A:caveAResult.portalPos, B:caveBResult.portalPos},
+    exit:{x:caveAResult.exitPos.x,y:caveAResult.exitPos.y,unlocked:false},
+    diamondsNeeded: Math.max(4, Math.ceil((caveAResult.diamondPositions.length+caveBResult.diamondPositions.length)*0.6)),
+    diamondsTotal: caveAResult.diamondPositions.length+caveBResult.diamondPositions.length,
   };
   activeCave='A';
   diamondsCollected=0;
@@ -398,8 +539,10 @@ function buildLevel(){
   particles=[];
   player = {x:1,y:1,px:1,py:1,moving:false,from:{x:1,y:1},to:{x:1,y:1},t:0,queue:[],dir:1,walkPhase:0,dead:false};
   monstersByCave = {A:monstersA, B:monstersB};
-  camX = clampCam(player.x - canvas.width/RES_SCALE/TS/2, level.w - canvas.width/RES_SCALE/TS);
-  camY = clampCam(player.y - canvas.height/RES_SCALE/TS/2, level.h - canvas.height/RES_SCALE/TS);
+  visited = {A:new Set(), B:new Set()};
+  const viewTilesX = canvas.width/RES_SCALE/TS, viewTilesY = canvas.height/RES_SCALE/TS;
+  camX = clampCam(player.x - viewTilesX/2, level.w - viewTilesX);
+  camY = clampCam(player.y - viewTilesY/2, level.h - viewTilesY);
   manualCam=false;
   monsterTimer=0;
 
@@ -427,6 +570,7 @@ function restartLevel(){
     B: snap.monstersByCave.B.map(m=>({...m,px:m.x,py:m.y,moving:false,from:{x:m.x,y:m.y},to:{x:m.x,y:m.y},t:0,alive:true})),
   };
   particles=[];
+  visited = {A:new Set(), B:new Set()};
   closeModal('deadModal');
   running=true;
   manualCam=false;
@@ -596,10 +740,14 @@ function attemptDirectMove(tx,ty,dx,dy){
       const beyondMon = monsterAt(bx,by);
       if(beyondMon){ beyondMon.alive=false; spawnParticles(bx,by,'#e05a4e',8); playSfx('squash'); }
       else playSfx('push');
-      beyond.type='boulder'; beyond.seed=cell.seed;
-      cell.type='floor';
+      beyond.type='boulder'; beyond.seed=cell.seed; beyond.bomb=cell.bomb;
+      cell.type='floor'; cell.bomb=false;
       startPlayerStep(tx,ty);
       spawnParticles(tx,ty,'#8a8378',3);
+    } else if(cell.bomb && beyond.type==='wall'){
+      triggerExplosion(bx,by);
+      cell.type='floor'; cell.bomb=false;
+      spawnParticles(tx,ty,'#ff9a3c',6);
     }
     return;
   }
@@ -626,6 +774,24 @@ function attemptDirectMove(tx,ty,dx,dy){
   }
   if(cell.type==='dirt'){ cell.type='floor'; startPlayerStep(tx,ty); return; }
   if(cell.type==='floor'){ startPlayerStep(tx,ty); return; }
+}
+
+function triggerExplosion(wx,wy){
+  const grid = curGrid();
+  playSfx('boom');
+  showToast('💥 Bang!');
+  for(let dy=-1;dy<=1;dy++){
+    for(let dx=-1;dx<=1;dx++){
+      const nx=wx+dx, ny=wy+dy;
+      if(nx<=0||ny<=0||nx>=level.w-1||ny>=level.h-1) continue;
+      const c=grid[ny][nx];
+      if(c.type==='wall') c.type='floor';
+      const m = monsterAt(nx,ny);
+      if(m){ m.alive=false; }
+    }
+  }
+  spawnParticles(wx,wy,'#ff9a3c',16);
+  spawnParticles(wx,wy,'#ffdf6b',10);
 }
 
 function usePortal(){
@@ -695,7 +861,7 @@ function bfsPath(sx,sy,tx,ty){
   if(target.type==='wall' || target.type==='boulder') return null;
   if(target.type==='exit' && !level.exit.unlocked) return null;
   const key=(x,y)=>x+','+y;
-  const visited = new Set([key(sx,sy)]);
+  const visitedQ = new Set([key(sx,sy)]);
   const prev = new Map();
   const q=[{x:sx,y:sy}]; let head=0;
   while(head<q.length){
@@ -705,17 +871,17 @@ function bfsPath(sx,sy,tx,ty){
     for(const [dx,dy] of dirs){
       const nx=cur.x+dx, ny=cur.y+dy;
       if(!inBounds(nx,ny)) continue;
-      if(visited.has(key(nx,ny))) continue;
+      if(visitedQ.has(key(nx,ny))) continue;
       const c=cellAt(nx,ny);
       const walkable = c.type==='floor'||c.type==='dirt'||c.type==='diamond'||c.type==='portal'||(c.type==='exit'&&level.exit.unlocked);
       if(!walkable) continue;
       if(isMonsterAt(nx,ny)) continue;
-      visited.add(key(nx,ny));
+      visitedQ.add(key(nx,ny));
       prev.set(key(nx,ny), cur);
       q.push({x:nx,y:ny});
     }
   }
-  if(!visited.has(key(tx,ty))) return null;
+  if(!visitedQ.has(key(tx,ty))) return null;
   const path=[]; let cur={x:tx,y:ty};
   while(!(cur.x===sx && cur.y===sy)){
     path.push(cur);
@@ -726,7 +892,7 @@ function bfsPath(sx,sy,tx,ty){
   return path;
 }
 
-/* ---- monsters (both caves roam; only active cave can touch player) ---- */
+/* ---- monsters ---- */
 function monsterTick(){
   ['A','B'].forEach(caveKey=>{
     const grid = level.caves[caveKey];
@@ -778,6 +944,7 @@ function killPlayer(msg){
 function winLevel(){
   running=false;
   playSfx('win');
+  recordProgress();
   document.getElementById('winText').textContent = 'Du hittade utgången med '+diamondsCollected+' diamanter!';
   document.getElementById('winModal').classList.remove('hidden');
 }
@@ -831,6 +998,8 @@ function update(dt){
   particles.forEach(p=>{ p.x+=p.vx*dt/1000; p.y+=p.vy*dt/1000; p.life-=dt/600; });
   particles = particles.filter(p=>p.life>0);
 
+  revealAround(player.px, player.py);
+
   if(!manualCam){
     const viewTilesX = canvas.width/RES_SCALE/TS, viewTilesY = canvas.height/RES_SCALE/TS;
     const targetX = clampCam(player.px - viewTilesX/2, level.w - viewTilesX);
@@ -839,8 +1008,20 @@ function update(dt){
     camY += (targetY-camY)*0.14;
   }
 }
+function revealAround(px,py){
+  const s = visited[activeCave];
+  const r = Math.ceil(LIGHT_RADIUS);
+  const cx=Math.round(px), cy=Math.round(py);
+  for(let dy=-r;dy<=r;dy++){
+    for(let dx=-r;dx<=r;dx++){
+      if(dx*dx+dy*dy > LIGHT_RADIUS*LIGHT_RADIUS) continue;
+      const x=cx+dx, y=cy+dy;
+      if(inBounds(x,y)) s.add(x+','+y);
+    }
+  }
+}
 
-/* ================= RENDER (low-res buffer upscaled for chunky retro look) ================= */
+/* ================= RENDER ================= */
 function render(){
   if(!ctx || !level) return;
   const c = lowCtx, cw=lowCanvas.width, ch=lowCanvas.height;
@@ -852,21 +1033,32 @@ function render(){
   const endY = Math.min(level.h, Math.ceil(camY+viewTilesY)+1);
   const ox = -camX*TS, oy = -camY*TS;
   const grid = curGrid();
+  const visitedSet = visited[activeCave];
 
   const phaseHi = phaseMode ? computePhaseHighlights() : null;
 
   for(let y=startY;y<endY;y++){
     for(let x=startX;x<endX;x++){
-      drawTile(c,grid[y][x], ox+x*TS, oy+y*TS, x, y, phaseHi);
+      const dist = Math.hypot(x+0.5-player.px, y+0.5-player.py);
+      const key = x+','+y;
+      const isVisited = visitedSet.has(key);
+      if(!isVisited){ continue; } // never-seen: stays pure black
+      const lit = dist <= LIGHT_RADIUS;
+      drawTile(c,grid[y][x], ox+x*TS, oy+y*TS, x, y, phaseHi, lit);
     }
   }
   particles.forEach(p=>{
+    if(Math.hypot(p.x-player.px, p.y-player.py) > LIGHT_RADIUS+1) return;
     c.globalAlpha = Math.max(0,p.life);
     c.fillStyle=p.color;
     c.fillRect(ox+p.x*TS-3, oy+p.y*TS-3, 6, 6);
     c.globalAlpha=1;
   });
-  curMonsters().forEach(m=>{ if(m.alive) drawMonster(c,m, ox+m.px*TS, oy+m.py*TS); });
+  curMonsters().forEach(m=>{
+    if(!m.alive) return;
+    if(Math.hypot(m.px-player.px, m.py-player.py) > LIGHT_RADIUS) return;
+    drawMonster(c,m, ox+m.px*TS, oy+m.py*TS);
+  });
   if(player) drawPlayer(c, ox+player.px*TS, oy+player.py*TS);
 
   ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -886,29 +1078,35 @@ function computePhaseHighlights(){
   return set;
 }
 
-function drawTile(c,cell,px,py,x,y,phaseHi){
+function drawTile(c,cell,px,py,x,y,phaseHi,lit){
   c.save(); c.translate(px,py);
   switch(cell.type){
-    case 'wall': drawWall(c); break;
+    case 'wall': drawWall(c,cell); break;
     case 'dirt': drawDirt(c,cell); break;
-    case 'floor': drawFloor(c); break;
-    case 'boulder': drawFloor(c); drawBoulder(c); break;
-    case 'diamond': drawFloor(c); drawDiamond(c,cell); break;
+    case 'floor': drawFloor(c,cell); break;
+    case 'boulder': drawFloor(c,cell); drawBoulder(c,cell); break;
+    case 'diamond': drawFloor(c,cell); drawDiamond(c,cell); break;
     case 'exit': drawExit(c); break;
-    case 'portal': drawFloor(c); drawPortal(c); break;
+    case 'portal': drawFloor(c,cell); drawPortal(c); break;
   }
   if(phaseHi && phaseHi.has(x+','+y)){
     c.fillStyle='rgba(192,132,252,0.28)'; c.fillRect(0,0,TS,TS);
   }
+  if(!lit){
+    c.fillStyle='rgba(0,0,0,0.62)'; c.fillRect(0,0,TS,TS);
+  }
   c.restore();
 }
-function drawFloor(c){
+function drawFloor(c,cell){
   c.fillStyle='#141018'; c.fillRect(0,0,TS,TS);
   c.strokeStyle='rgba(255,255,255,0.04)'; c.strokeRect(0.5,0.5,TS-1,TS-1);
 }
-function drawWall(c){
-  c.fillStyle='#3a3f4a'; c.fillRect(0,0,TS,TS);
-  c.fillStyle='#4a505c'; c.fillRect(0,0,TS,TS*0.5);
+function drawWall(c,cell){
+  const shades=['#3a3f4a','#3f4450','#363b45'];
+  const shadeIdx = Math.floor((cell.seed||0)*shades.length);
+  c.fillStyle=shades[shadeIdx]; c.fillRect(0,0,TS,TS);
+  c.fillStyle='rgba(255,255,255,0.06)'; c.fillRect(0,0,TS,TS*0.5);
+  if(cell.seed && cell.seed>0.7){ c.fillStyle='#4a5c3f'; c.fillRect(TS*0.1,TS*0.15,4,4); c.fillRect(TS*0.7,TS*0.6,4,4); }
   c.strokeStyle='#1c1f26'; c.lineWidth=2;
   c.strokeRect(1,1,TS-2,TS-2);
   c.beginPath(); c.moveTo(0,TS/2); c.lineTo(TS,TS/2);
@@ -923,13 +1121,25 @@ function drawDirt(c,cell){
   c.fillStyle='#4a351c';
   for(let i=0;i<5;i++) c.fillRect(Math.floor(r()*TS/4)*4, Math.floor(r()*TS/4)*4, 4, 4);
 }
-function drawBoulder(c){
+function drawBoulder(c,cell){
   const cx=TS/2, cy=TS/2, rad=TS*0.36;
-  c.fillStyle='#6b6259';
-  c.beginPath(); c.arc(cx,cy,rad,0,7); c.fill();
-  c.fillStyle='#8a8378';
-  c.beginPath(); c.arc(cx-5,cy-5,rad*0.5,0,7); c.fill();
-  c.strokeStyle='#211e1a'; c.lineWidth=2; c.beginPath(); c.arc(cx,cy,rad,0,7); c.stroke();
+  if(cell.bomb){
+    c.fillStyle='#5a2a22';
+    c.beginPath(); c.arc(cx,cy,rad,0,7); c.fill();
+    c.fillStyle='#7a3a2c';
+    c.beginPath(); c.arc(cx-5,cy-5,rad*0.5,0,7); c.fill();
+    c.strokeStyle='#1a0e0a'; c.lineWidth=2; c.beginPath(); c.arc(cx,cy,rad,0,7); c.stroke();
+    const flick = 0.5+Math.sin(performance.now()*0.02+cell.seed*20)*0.5;
+    c.fillStyle='rgba(255,180,60,'+(0.5+flick*0.5)+')';
+    c.beginPath(); c.arc(cx,cy-rad-2,3,0,7); c.fill();
+    c.strokeStyle='#8a5a2e'; c.lineWidth=2; c.beginPath(); c.moveTo(cx,cy-rad); c.lineTo(cx,cy-rad-4); c.stroke();
+  } else {
+    c.fillStyle='#6b6259';
+    c.beginPath(); c.arc(cx,cy,rad,0,7); c.fill();
+    c.fillStyle='#8a8378';
+    c.beginPath(); c.arc(cx-5,cy-5,rad*0.5,0,7); c.fill();
+    c.strokeStyle='#211e1a'; c.lineWidth=2; c.beginPath(); c.arc(cx,cy,rad,0,7); c.stroke();
+  }
 }
 function drawDiamond(c,cell){
   const t = performance.now()*0.003 + cell.seed*10;
@@ -975,41 +1185,37 @@ function drawPlayer(c,px,py){
   c.translate(0,bob);
   c.scale(player.dir,1);
   if(player.dead) c.globalAlpha=0.3;
+  // torch glow
+  const glowR = TS*1.4;
+  const grad = c.createRadialGradient(0,0,4,0,0,glowR);
+  grad.addColorStop(0,'rgba(255,210,120,0.16)'); grad.addColorStop(1,'rgba(255,210,120,0)');
+  c.fillStyle=grad; c.beginPath(); c.arc(0,0,glowR,0,7); c.fill();
   c.save(); c.globalAlpha*=0.35; c.fillStyle='#000';
   c.fillRect(-TS*0.18,TS*0.28,TS*0.36,TS*0.08); c.restore();
-  // cape
   c.fillStyle='#2e2350';
   c.beginPath(); c.moveTo(-TS*0.16,-TS*0.08); c.lineTo(-TS*0.24,TS*0.24); c.lineTo(-TS*0.06,TS*0.2); c.closePath(); c.fill();
-  // legs (discrete frames)
   c.fillStyle='#241a30';
   const legOff = stepFrame? 4:-4;
   c.fillRect(-6+legOff*0.2,TS*0.18,5,TS*0.14);
   c.fillRect(2-legOff*0.2,TS*0.18,5,TS*0.14);
-  // robe
   c.fillStyle='#5a3e8a';
   c.beginPath();
   c.moveTo(0,-TS*0.12); c.lineTo(TS*0.2,TS*0.22); c.lineTo(-TS*0.2,TS*0.22); c.closePath(); c.fill();
   c.fillStyle='#4a3070';
   c.beginPath(); c.moveTo(0,-TS*0.12); c.lineTo(TS*0.06,TS*0.22); c.lineTo(-TS*0.06,TS*0.22); c.closePath(); c.fill();
-  c.strokeStyle='#1c1430'; c.lineWidth=1.5; c.strokeRect(-TS*0.001,-TS*0.13,0.001,0.001);
-  // belt
   c.fillStyle='#f2c34d'; c.fillRect(-TS*0.14,TS*0.02,TS*0.28,3);
-  // staff
   c.strokeStyle='#8a5a2e'; c.lineWidth=3; c.lineCap='round';
   c.beginPath(); c.moveTo(TS*0.24,TS*0.2); c.lineTo(TS*0.24,-TS*0.28); c.stroke();
   const glow = 0.6+Math.sin(performance.now()*0.005)*0.4;
   c.fillStyle='rgba(95,214,232,'+glow+')';
   c.beginPath(); c.arc(TS*0.24,-TS*0.3,4,0,7); c.fill();
-  // head
   c.fillStyle='#f0d3a8';
   c.beginPath(); c.arc(0,-TS*0.2,TS*0.13,0,7); c.fill();
-  // hat
   c.fillStyle='#5a3e8a';
   c.beginPath(); c.moveTo(-TS*0.17,-TS*0.26); c.lineTo(TS*0.17,-TS*0.26); c.lineTo(TS*0.04,-TS*0.6); c.closePath(); c.fill();
   c.fillStyle='#f2c34d'; c.fillRect(-TS*0.19,-TS*0.27,TS*0.38,3);
   c.fillStyle='#fff4c2';
   c.beginPath(); c.arc(TS*0.02,-TS*0.42,2.2,0,7); c.fill();
-  // eyes
   c.fillStyle='#1a1420'; c.fillRect(2,-TS*0.21,2,2);
   c.restore();
 }
