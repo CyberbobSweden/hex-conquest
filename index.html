@@ -40,6 +40,7 @@ h1,h2,h3{font-family:'Press Start 2P',monospace;letter-spacing:1px;}
 .diffRow .btn{flex:1;background:#241d16;}
 .diffRow .btn.active{background:#3a5e3a;}
 .helpText{font-size:15px;color:#c8bda2;line-height:1.6;margin-top:10px;}
+.helpText.hidden{display:none;}
 .helpText b{color:var(--gold);}
 #levelGrid{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
 #levelGrid .btn{background:#6b4e1e;}
@@ -98,7 +99,10 @@ canvas{display:block;touch-action:none;image-rendering:pixelated;}
       <div class="field-label">Svårighet</div>
       <div class="diffRow" id="diffRow"></div>
       <button class="btn start" onclick="startGame()">▶ Starta nytt äventyr</button>
-      <div class="helpText">
+      <div style="margin-top:8px;">
+        <b style="color:var(--gold); font-size:14px; cursor:pointer;" onclick="toggleHelp()" id="helpToggle">ℹ️ Hur man spelar ▾</b>
+      </div>
+      <div class="helpText hidden" id="helpTextBlock">
         <b>Samma frö = samma värld.</b> Dela fröet med en kompis för att spela exakt samma karta.
         Ett nytt frö skriver över tidigare sparad framgång för det namnet.<br><br>
         👆 Tryck där du vill gå. 🪨 Knuffa stenar (även på monster = krossar dem!).<br>
@@ -249,6 +253,12 @@ function renderDiffRow(){
   });
 }
 renderDiffRow();
+function toggleHelp(){
+  const block = document.getElementById('helpTextBlock');
+  const toggle = document.getElementById('helpToggle');
+  const isHidden = block.classList.toggle('hidden');
+  toggle.textContent = isHidden ? 'ℹ️ Hur man spelar ▾' : 'ℹ️ Hur man spelar ▴';
+}
 (function initName(){
   const saved = localStorage.getItem('hc_lastName')||'';
   document.getElementById('nameInput').value = saved;
