@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Hex Conquest">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon.svg">
-<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png" type="image/png">
 <title>Hex Conquest — Trollkarlens Valv</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
@@ -277,6 +277,12 @@ let visited={A:new Set(), B:new Set()};
 /* replay */
 let recording=false, isReplaying=false;
 let actions=[], sessionStart=0, replayTimers=[];
+
+/* ================= PLAYER SPRITE ================= */
+const wizardImg = new Image();
+let wizardImgFailed = false;
+wizardImg.onerror = () => { wizardImgFailed = true; };
+wizardImg.src = "data:image/png;base64,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";
 
 /* ================= AUDIO ================= */
 let audioCtx=null;
@@ -1250,6 +1256,34 @@ function drawPotion(c,cell){
   c.fillStyle='rgba(255,255,255,0.5)'; c.fillRect(Math.round((8-2)*PU),Math.round((8-2)*PU+bob),Math.ceil(PU),Math.ceil(PU));
 }
 function drawPlayer(c,px,py){
+  const spriteReady = wizardImg.complete && wizardImg.naturalWidth && !wizardImgFailed;
+  if(spriteReady){ drawPlayerSprite(c,px,py); return; }
+  drawPlayerFallback(c,px,py);
+}
+function drawPlayerSprite(c,px,py){
+  c.save(); c.translate(px+TS/2, py+TS/2);
+  const stepFrame = player.moving ? (Math.floor(player.walkPhase*6)%2) : 0;
+  const bob = player.moving ? (stepFrame? -1:0) : Math.round(Math.sin(player.walkPhase*3)*1);
+  const PU0 = TS/16;
+  c.translate(0,bob*PU0);
+  c.scale(player.dir,1);
+  if(player.dead) c.globalAlpha=0.3;
+  else if(performance.now() < player.invulnUntil){
+    c.globalAlpha *= (Math.floor(performance.now()/90)%2===0 ? 1 : 0.4);
+  }
+  const glowR = TS*1.7;
+  const grad = c.createRadialGradient(0,0,4,0,0,glowR);
+  grad.addColorStop(0,'rgba(210,230,255,0.18)'); grad.addColorStop(1,'rgba(210,230,255,0)');
+  c.fillStyle=grad; c.beginPath(); c.arc(0,0,glowR,0,7); c.fill();
+  c.save(); c.globalAlpha*=0.35; c.fillStyle='#000';
+  c.fillRect(-TS*0.28,TS*0.32,TS*0.56,TS*0.12); c.restore();
+
+  const dw = TS*1.15;
+  const dh = dw * (wizardImg.height/wizardImg.width);
+  c.drawImage(wizardImg, -dw/2, -dh*0.7, dw, dh);
+  c.restore();
+}
+function drawPlayerFallback(c,px,py){
   const PU = TS/16;
   c.save(); c.translate(px+TS/2, py+TS/2);
   const stepFrame = player.moving ? (Math.floor(player.walkPhase*6)%2) : 0;
