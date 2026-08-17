@@ -86,7 +86,18 @@ canvas{display:block;touch-action:none;image-rendering:pixelated;}
         <div class="field-label">Dina banor</div>
         <div id="progressInfo" style="font-size:14px;color:#c8bda2;margin-bottom:8px;"></div>
         <div id="levelGrid"></div>
-        <button class="btn small red" onclick="resetProfile()">🗑 Radera framsteg</button>
+        <div class="btnRow">
+          <button class="btn small gold" onclick="exportSaveCode()">🔑 Sparkod</button>
+          <button class="btn small red" onclick="resetProfile()">🗑 Radera</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-box">
+      <div class="field-label">🔑 Har du en sparkod från en annan enhet?</div>
+      <div class="seed-row">
+        <input id="importSaveInput" type="text" placeholder="Klistra in sparkod...">
+        <button class="btn small" id="importSaveBtn" onclick="importSaveCode()">↻</button>
       </div>
     </div>
 
@@ -171,6 +182,18 @@ canvas{display:block;touch-action:none;image-rendering:pixelated;}
     </div>
   </div>
 
+  <div class="modal hidden" id="saveCodeModal">
+    <div class="modal-box">
+      <h2 style="color:var(--gold)">🔑 DIN SPARKOD</h2>
+      <p>Spara koden någonstans säkert (anteckningar, mail till dig själv). Klistra in den på vilken enhet eller webbläsare som helst för att återställa ditt namn och framsteg — inget konto behövs.</p>
+      <textarea id="saveCodeBox" readonly></textarea>
+      <div class="btnRow">
+        <button class="btn small" id="copySaveBtn" onclick="copySaveCode()">📋 Kopiera</button>
+        <button class="btn small" onclick="closeModal('saveCodeModal')">Stäng</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -225,6 +248,33 @@ function resetProfile(){
   if(!profileName) return;
   localStorage.removeItem('hc_profile_'+profileName);
   onNameChange();
+}
+function exportSaveCode(){
+  if(!profileName) return;
+  const p = loadProfile(profileName);
+  if(!p){ alert('Inget sparat än för det namnet.'); return; }
+  const payload = {name:profileName, seed:p.seed, difficulty:p.difficulty||'normal', maxLevel:p.maxLevel||1};
+  const code = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  document.getElementById('saveCodeBox').value = code;
+  document.getElementById('saveCodeModal').classList.remove('hidden');
+}
+function copySaveCode(){
+  const box=document.getElementById('saveCodeBox');
+  box.select();
+  try{ document.execCommand('copy'); const b=document.getElementById('copySaveBtn'); const old=b.textContent; b.textContent='Kopierad!'; setTimeout(()=>b.textContent=old,1200); }catch(e){}
+}
+function importSaveCode(){
+  const code = (document.getElementById('importSaveInput').value||'').trim();
+  if(!code){ alert('Klistra in en sparkod först.'); return; }
+  let data;
+  try{ data = JSON.parse(decodeURIComponent(escape(atob(code)))); }
+  catch(e){ alert('Ogiltig sparkod.'); return; }
+  if(!data.name || !data.seed){ alert('Ogiltig sparkod.'); return; }
+  localStorage.setItem('hc_profile_'+data.name, JSON.stringify({seed:data.seed, difficulty:data.difficulty||'normal', maxLevel:data.maxLevel||1}));
+  document.getElementById('nameInput').value = data.name;
+  document.getElementById('importSaveInput').value = '';
+  onNameChange();
+  const b=document.getElementById('importSaveBtn'); const old=b.textContent; b.textContent='✓'; setTimeout(()=>b.textContent=old,1200);
 }
 function recordProgress(){
   if(isReplaying || !profileName) return;
@@ -501,7 +551,7 @@ function buildCaveFull(seedBase, w, h, levelNum, diamondMul, isPrimary){
     for(let i=0;i<boulderCount;i++){
       const cell=cave.freeCell(); if(!cell) continue;
       markOccupied(cave,cell.x,cell.y,'boulder');
-      if(rnd()<0.25) cave.grid[cell.y][cell.x].bomb=true;
+      if(rnd()<0.32) cave.grid[cell.y][cell.x].bomb=true;
     }
     const diamondTotal = Math.round((3+levelNum*0.4)*diamondMul);
     const diamondPositions=[];
@@ -527,7 +577,10 @@ function buildCaveFull(seedBase, w, h, levelNum, diamondMul, isPrimary){
     markOccupied(cave, portalPos.x, portalPos.y, 'portal');
 
     const result = {grid:cave.grid, diamondPositions, exitPos, portalPos};
-    if(isSolvable(cave.grid,w,h,diamondPositions,exitPos,portalPos,spawn)) return result;
+    if(isSolvable(cave.grid,w,h,diamondPositions,exitPos,portalPos,spawn)){
+      addBombVault(cave.grid, rnd, w, h);
+      return result;
+    }
     last = result;
   }
   // fallback: carve guaranteed corridors so nothing is ever unreachable
@@ -535,6 +588,35 @@ function buildCaveFull(seedBase, w, h, levelNum, diamondMul, isPrimary){
   ensureReachable(last.grid,w,h,spawn,last.exitPos);
   ensureReachable(last.grid,w,h,spawn,last.portalPos);
   return last;
+}
+
+function addBombVault(grid, rnd, w, h){
+  if(rnd()>=0.5) return;
+  for(let tries=0; tries<25; tries++){
+    const vx = 2 + Math.floor(rnd()*(w-6));
+    const vy = 2 + Math.floor(rnd()*(h-6));
+    if(vx<4 && vy<4) continue;
+    let ok = true;
+    for(let y=vy-1; y<=vy+3 && ok; y++){
+      for(let x=vx-1; x<=vx+3; x++){
+        if(x<=0||y<=0||x>=w-1||y>=h-1){ ok=false; break; }
+        const t = grid[y][x].type;
+        if(t==='exit'||t==='portal'||t==='diamond'||t==='potion'||t==='familiar'){ ok=false; break; }
+      }
+    }
+    if(!ok) continue;
+    for(let y=vy; y<=vy+2; y++){
+      for(let x=vx; x<=vx+2; x++){
+        const isEdge = (x===vx||x===vx+2||y===vy||y===vy+2);
+        if(isEdge){ grid[y][x].type='wall'; grid[y][x].seed=rnd(); grid[y][x].vaultWall=true; }
+      }
+    }
+    const cx=vx+1, cy=vy+1;
+    grid[cy][cx].type = rnd()<0.5 ? 'diamond' : 'potion';
+    grid[cy][cx].seed = rnd();
+    return true;
+  }
+  return false;
 }
 
 function buildLevel(){
@@ -1229,6 +1311,15 @@ function drawWall(c,cell){
   c.moveTo(TS/4,TS/2); c.lineTo(TS/4,TS);
   c.moveTo(TS*0.75,TS/2); c.lineTo(TS*0.75,TS);
   c.stroke();
+  if(cell.vaultWall){
+    const glow = 0.35+Math.sin(performance.now()*0.004+(cell.seed||0)*20)*0.25;
+    c.strokeStyle='rgba(242,195,77,'+glow+')';
+    c.lineWidth=2;
+    c.beginPath();
+    c.moveTo(TS*0.2,TS*0.1); c.lineTo(TS*0.5,TS*0.5); c.lineTo(TS*0.32,TS*0.9);
+    c.moveTo(TS*0.5,TS*0.5); c.lineTo(TS*0.82,TS*0.75);
+    c.stroke();
+  }
 }
 function drawDirt(c,cell){
   c.fillStyle='#5c4326'; c.fillRect(0,0,TS,TS);
