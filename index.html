@@ -78,6 +78,11 @@ canvas{display:block;touch-action:none;image-rendering:pixelated;}
     <div class="sub">Trollkarlens Valv — samla diamanter, undvik monster</div>
 
     <div class="panel-box">
+      <div class="field-label">🏆 Topplista (den här enheten)</div>
+      <div id="leaderboardBox" style="font-size:14px;color:#a89a7c;"></div>
+    </div>
+
+    <div class="panel-box">
       <div class="field-label">Spelarnamn (sparar dina framsteg lokalt)</div>
       <div class="seed-row">
         <input id="nameInput" type="text" placeholder="Ditt namn" oninput="onNameChange()">
@@ -233,16 +238,72 @@ function onNameChange(){
   if(p && p.maxLevel>0){
     panel.style.display='block';
     document.getElementById('progressInfo').textContent = 'Högsta nivå du klarat: '+Math.max(0,p.maxLevel-1);
-    const g=document.getElementById('levelGrid'); g.innerHTML='';
-    for(let i=1;i<=p.maxLevel;i++){
-      const b=document.createElement('button');
-      b.className='btn small'; b.textContent='Nivå '+i;
-      b.onclick=()=>continueGame(i);
-      g.appendChild(b);
-    }
+    renderLevelGroups(p.maxLevel);
   } else {
     panel.style.display='none';
   }
+  renderLeaderboard();
+}
+const LEVELS_PER_GROUP = 6;
+function renderLevelGroups(maxLevel){
+  const g=document.getElementById('levelGrid'); g.innerHTML='';
+  const groupCount = Math.ceil(maxLevel/LEVELS_PER_GROUP);
+  const currentGroupIdx = Math.floor((maxLevel-1)/LEVELS_PER_GROUP);
+  for(let gi=0; gi<groupCount; gi++){
+    const startLvl = gi*LEVELS_PER_GROUP+1;
+    const endLvl = Math.min(maxLevel, (gi+1)*LEVELS_PER_GROUP);
+    const groupDiv = document.createElement('div');
+    groupDiv.style.cssText='margin-bottom:8px;border:2px solid var(--border);background:#14100c;';
+    const isOpen = gi===currentGroupIdx;
+    const header = document.createElement('div');
+    header.style.cssText='padding:9px 10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--gold);';
+    header.innerHTML = `<span>🗺️ Värld ${gi+1} <span style="color:#a89a7c">(Nivå ${startLvl}–${endLvl})</span></span><span>${isOpen?'▴':'▾'}</span>`;
+    const body = document.createElement('div');
+    body.style.cssText='padding:8px;display:'+(isOpen?'flex':'none')+';flex-wrap:wrap;gap:6px;';
+    for(let i=startLvl;i<=endLvl;i++){
+      const b=document.createElement('button');
+      b.className='btn small'; b.textContent='Nivå '+i;
+      b.onclick=()=>continueGame(i);
+      body.appendChild(b);
+    }
+    header.onclick=()=>{
+      const nowOpen = body.style.display==='flex';
+      body.style.display = nowOpen? 'none':'flex';
+      header.lastElementChild.textContent = nowOpen? '▾':'▴';
+    };
+    groupDiv.appendChild(header);
+    groupDiv.appendChild(body);
+    g.appendChild(groupDiv);
+  }
+}
+function getAllProfiles(){
+  const list=[];
+  for(let i=0;i<localStorage.length;i++){
+    const key = localStorage.key(i);
+    if(key && key.indexOf('hc_profile_')===0){
+      try{
+        const data = JSON.parse(localStorage.getItem(key));
+        list.push({name: key.slice('hc_profile_'.length), maxLevel: data.maxLevel||1});
+      }catch(e){}
+    }
+  }
+  list.sort((a,b)=>b.maxLevel-a.maxLevel);
+  return list;
+}
+function renderLeaderboard(){
+  const box = document.getElementById('leaderboardBox');
+  if(!box) return;
+  const list = getAllProfiles();
+  if(list.length===0){
+    box.innerHTML = '<div style="font-size:14px;color:#a89a7c;">Inga sparade spelare än på den här enheten.</div>';
+    return;
+  }
+  box.innerHTML = list.slice(0,10).map((p,i)=>{
+    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.';
+    const isYou = p.name===profileName ? ' style="color:var(--good);"' : '';
+    return `<div${isYou} style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #3a3020;font-size:15px;">
+      <span>${medal} ${p.name}</span><span style="color:var(--gold)">Nivå ${Math.max(0,p.maxLevel-1)}</span></div>`;
+  }).join('');
 }
 function resetProfile(){
   if(!profileName) return;
@@ -310,9 +371,11 @@ function toggleHelp(){
   toggle.textContent = isHidden ? 'ℹ️ Hur man spelar ▾' : 'ℹ️ Hur man spelar ▴';
 }
 (function initName(){
+  history.scrollRestoration && (history.scrollRestoration = 'manual');
   const saved = localStorage.getItem('hc_lastName')||'';
   document.getElementById('nameInput').value = saved;
   onNameChange();
+  requestAnimationFrame(()=>{ const el=document.getElementById('startScreen'); if(el) el.scrollTop=0; window.scrollTo(0,0); });
 })();
 
 /* ================= GAME STATE ================= */
@@ -441,6 +504,7 @@ function backToMenu(){
   document.getElementById('gameScreen').style.display='none';
   document.getElementById('startScreen').style.display='flex';
   onNameChange();
+  const el=document.getElementById('startScreen'); if(el) el.scrollTop=0;
   closeModal('deadModal'); closeModal('winModal'); closeModal('replayModal');
 }
 function resizeCanvas(){
