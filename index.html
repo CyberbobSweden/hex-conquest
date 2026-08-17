@@ -123,7 +123,8 @@ canvas{display:block;touch-action:none;image-rendering:pixelated;}
         Ett nytt frö skriver över tidigare sparad framgång för det namnet.<br><br>
         👆 Tryck där du vill gå. 🪨 Knuffa stenar (även på monster = krossar dem!).<br>
         💣 Vissa stenar är <b>bomber</b> — knuffa dem in i en vägg så spränger de bort den!<br>
-        ⚡ Tryck på ett monster intill dig för att attackera (kräver laddning).<br>
+        ⚡ Gå precis intill ett spöke och tryck på det för att attackera — eller sikta rakt i din rad/kolumn (inga väggar i vägen) för att zappa på <b>avstånd</b>! Laddningar fylls sakta på av sig själva.<br>
+        👻 Lila spöken vandrar slumpmässigt. Röda jagar dig. Från nivå 6 dyker gråa <b>pansrade</b> spöken upp (tål 2 blixtar, men en sten krossar dem ändå direkt). Från nivå 9 dyker snabba orange spöken upp.<br>
         🌀 Fasa: tryck knappen, peka sen rakt genom en vägg i din rad/kolumn.<br>
         🔵 Portalen länkar de två grottorna. 🕯️ Din trollkarl bär ett ljus — mörkret döljer det du inte utforskat än.<br>
         Banorna är alltid garanterat lösbara, och växer större för varje nivå.
@@ -211,10 +212,11 @@ const RES_SCALE = 2;
 const LIGHT_RADIUS = 5.6;
 
 const DIFFICULTIES = {
-  calm:   {label:'Lugn',    monsterMul:0.5, diamondMul:0.8, phaseCharges:4, zapCharges:5, maxHealth:5},
-  normal: {label:'Normal',  monsterMul:1.0, diamondMul:1.0, phaseCharges:2, zapCharges:3, maxHealth:3},
-  intense:{label:'Intensiv',monsterMul:1.7, diamondMul:1.25, phaseCharges:1, zapCharges:2, maxHealth:2},
+  calm:   {label:'Lugn',    monsterMul:0.5, diamondMul:0.8, phaseCharges:4, zapCharges:5, zapCap:9, maxHealth:5},
+  normal: {label:'Normal',  monsterMul:1.0, diamondMul:1.0, phaseCharges:2, zapCharges:3, zapCap:7, maxHealth:3},
+  intense:{label:'Intensiv',monsterMul:1.7, diamondMul:1.25, phaseCharges:1, zapCharges:2, zapCap:5, maxHealth:2},
 };
+const ZAP_REGEN_MS = 13000;
 let difficulty = 'normal';
 
 /* ================= RNG ================= */
@@ -391,6 +393,7 @@ let phaseMode=false;
 let phaseCharges=0, zapCharges=0;
 let diamondsCollected=0;
 let monsterTimer=0;
+let zapRegenTimer=0, zapCap=7;
 let running=false;
 let camX=0, camY=0, manualCam=false;
 let canvas, ctx, lowCanvas, lowCtx;
@@ -692,6 +695,15 @@ function buildLevel(){
   const caveBResult = buildCaveFull(seed+':B:lvl'+levelNum, w, h, levelNum, d.diamondMul, false);
 
   gameRnd = seededRandom(seed+':run'+levelNum);
+  function pickMonsterType(rnd2){
+    const roll = rnd2();
+    let acc = 0;
+    if(levelNum>=9){ acc += 0.14; if(roll<acc) return 'sprinter'; }
+    if(levelNum>=6){ acc += 0.20; if(roll<acc) return 'brute'; }
+    const chaserShare = levelNum>=3 ? 0.5 : 0.15;
+    acc += chaserShare; if(roll<acc) return 'chaser';
+    return 'wanderer';
+  }
   function spawnMonsters(grid, count, avoid){
     const rnd2 = gameRnd;
     const occupied = new Set();
@@ -706,8 +718,10 @@ function buildLevel(){
       if(avoid && (Math.abs(x-avoid.x)+Math.abs(y-avoid.y))<4) continue;
       occupied.add(key);
       grid[y][x].type='floor';
+      const mtype = pickMonsterType(rnd2);
+      const hp = mtype==='brute' ? 2 : 1;
       list.push({x,y,px:x,py:y,
-        type: rnd2()<Math.min(0.75,0.15+levelNum*0.08)?'chaser':'wanderer',
+        type: mtype, hp, maxHp:hp,
         moving:false,from:{x,y},to:{x,y},t:0,alive:true,bob:rnd2()*10});
     }
     return list;
@@ -726,7 +740,7 @@ function buildLevel(){
   };
   activeCave='A';
   diamondsCollected=0;
-  phaseCharges = d.phaseCharges; zapCharges = d.zapCharges;
+  phaseCharges = d.phaseCharges; zapCharges = d.zapCharges; zapCap = d.zapCap; zapRegenTimer=0;
   phaseMode=false;
   particles=[];
   player = {x:1,y:1,px:1,py:1,moving:false,from:{x:1,y:1},to:{x:1,y:1},t:0,queue:[],dir:1,walkPhase:0,dead:false,
@@ -754,6 +768,8 @@ function restartLevel(){
   diamondsCollected=0;
   phaseCharges = DIFFICULTIES[difficulty].phaseCharges;
   zapCharges = DIFFICULTIES[difficulty].zapCharges;
+  zapCap = DIFFICULTIES[difficulty].zapCap;
+  zapRegenTimer=0;
   phaseMode=false;
   gameRnd = seededRandom(seed+':run'+levelNum);
   player.x=1; player.y=1; player.px=1; player.py=1;
@@ -783,7 +799,7 @@ function updateHud(){
   const caveName = activeCave==='A' ? 'Övre grottan' : 'Undre grottan';
   const hearts = '❤️'.repeat(Math.max(0,player.health))+'🖤'.repeat(Math.max(0,player.maxHealth-player.health));
   document.getElementById('hudInfo').innerHTML =
-    `N${levelNum} · ${caveName}<br>${hearts}<br>💎${diamondsCollected}/${level.diamondsNeeded} ⚡${zapCharges}`;
+    `N${levelNum} · ${caveName}<br>${hearts}<br>💎${diamondsCollected}/${level.diamondsNeeded} ⚡${zapCharges}/${zapCap}`;
   const pb = document.getElementById('phaseBtn');
   pb.textContent = '🌀('+phaseCharges+')';
   pb.disabled = phaseCharges<=0;
@@ -792,6 +808,19 @@ function updateHud(){
 function updateHelp(){
   document.getElementById('help').textContent =
     level.exit.unlocked ? 'Utgången är öppen i Övre grottan!' : 'Samla '+level.diamondsNeeded+' diamanter (finns i båda grottorna)';
+}
+let lastHelpText = '';
+function updateDynamicHelp(){
+  if(!running || player.dead) return;
+  const el = document.getElementById('help');
+  const adjMonster = curMonsters().find(m=>m.alive && Math.abs(Math.round(m.x)-player.x)+Math.abs(Math.round(m.y)-player.y)===1);
+  let text;
+  if(adjMonster){
+    text = zapCharges>0 ? '👊 Tryck på spöket bredvid dig för att attackera det!' : '⚠️ Inga attacker kvar — knuffa en sten in i spöket istället!';
+  } else {
+    text = level.exit.unlocked ? 'Utgången är öppen i Övre grottan!' : 'Samla '+level.diamondsNeeded+' diamanter (finns i båda grottorna)';
+  }
+  if(text !== lastHelpText){ el.textContent = text; lastHelpText = text; }
 }
 let toastTimer=null;
 function showToast(msg){
@@ -897,6 +926,46 @@ function cellAt(x,y){ return inBounds(x,y)?curGrid()[y][x]:{type:'wall'}; }
 function curMonsters(){ return monstersByCave[activeCave]; }
 function isMonsterAt(x,y){ return curMonsters().some(m=>m.alive && Math.round(m.x)===x && Math.round(m.y)===y); }
 function monsterAt(x,y){ return curMonsters().find(m=>m.alive && Math.round(m.x)===x && Math.round(m.y)===y); }
+function hasLineOfSight(x0,y0,x1,y1,maxRange){
+  if(x0!==x1 && y0!==y1) return false;
+  const dist = Math.abs(x1-x0)+Math.abs(y1-y0);
+  if(dist>maxRange) return false;
+  const dx = Math.sign(x1-x0), dy = Math.sign(y1-y0);
+  let cx=x0+dx, cy=y0+dy;
+  while(cx!==x1 || cy!==y1){
+    const c = cellAt(cx,cy);
+    if(c.type==='wall' || c.type==='boulder') return false;
+    cx+=dx; cy+=dy;
+  }
+  return true;
+}
+function rangedZap(tx,ty){
+  const mon = monsterAt(tx,ty);
+  if(!mon) return;
+  if(zapCharges<=0){
+    showToast('Inga attacker kvar — knuffa en sten på det! (laddning fylls på med tiden)');
+    return;
+  }
+  zapCharges--; zapRegenTimer=0; updateHud();
+  mon.hp = (mon.hp||1) - 1;
+  playSfx('zap');
+  spawnZapBeam(player.x,player.y,tx,ty);
+  if(mon.hp<=0){
+    mon.alive=false;
+    spawnParticles(tx,ty,'#ffdf6b',9);
+    showToast('🎯 Träffad på avstånd!');
+  } else {
+    spawnParticles(tx,ty,'#ffdf6b',5);
+    showToast('🎯 Träff på avstånd! Pansrat spöke — '+mon.hp+' liv kvar');
+  }
+}
+function spawnZapBeam(x0,y0,x1,y1){
+  const steps = Math.max(Math.abs(x1-x0), Math.abs(y1-y0));
+  for(let i=1;i<steps;i++){
+    const t=i/steps;
+    particles.push({x:x0+(x1-x0)*t+0.5, y:y0+(y1-y0)*t+0.5, vx:0, vy:0, life:0.35, color:'#ffdf6b'});
+  }
+}
 
 function handleTap(tx,ty){
   if(!inBounds(tx,ty) || player.dead || !running) return;
@@ -907,6 +976,15 @@ function handleTap(tx,ty){
     return;
   }
   if(dx===0 && dy===0) return;
+  if(isMonsterAt(tx,ty)){
+    const sameLine = (tx===player.x || ty===player.y);
+    if(sameLine && hasLineOfSight(player.x,player.y,tx,ty,6)){
+      rangedZap(tx,ty);
+    } else {
+      showToast('👣 Gå intill spöket, eller sikta rakt i din rad/kolumn för att zappa på avstånd');
+    }
+    return;
+  }
   const path = bfsPath(player.x,player.y,tx,ty);
   if(path && path.length>0){
     player.queue = path;
@@ -921,12 +999,19 @@ function attemptDirectMove(tx,ty,dx,dy){
   const mon = monsterAt(tx,ty);
   if(mon){
     if(zapCharges>0){
-      mon.alive=false; zapCharges--; updateHud();
-      spawnParticles(tx,ty,'#ffdf6b',9);
-      showToast('Attackerade!');
+      zapCharges--; zapRegenTimer=0; updateHud();
+      mon.hp = (mon.hp||1) - 1;
       playSfx('zap');
+      if(mon.hp<=0){
+        mon.alive=false;
+        spawnParticles(tx,ty,'#ffdf6b',9);
+        showToast('Attackerade!');
+      } else {
+        spawnParticles(tx,ty,'#ffdf6b',5);
+        showToast('Träff! Pansrat spöke — '+mon.hp+' liv kvar (eller knuffa en sten på det)');
+      }
     } else {
-      showToast('Inga attacker kvar — knuffa en sten på det!');
+      showToast('Inga attacker kvar — knuffa en sten på det! (laddning fylls på med tiden)');
     }
     return;
   }
@@ -1123,7 +1208,9 @@ function monsterTick(){
       if(!m.alive || m.moving) return;
       let dx=0,dy=0;
       const targetHere = caveKey===activeCave;
-      if(m.type==='chaser' && targetHere && Math.abs(m.x-player.x)+Math.abs(m.y-player.y)<=7){
+      const isChaseType = (m.type==='chaser'||m.type==='brute'||m.type==='sprinter');
+      const chaseRange = m.type==='sprinter' ? 10 : 7;
+      if(isChaseType && targetHere && Math.abs(m.x-player.x)+Math.abs(m.y-player.y)<=chaseRange){
         const optsPrimary = Math.abs(player.x-m.x)>=Math.abs(player.y-m.y);
         const tryDirs = optsPrimary
           ? [[Math.sign(player.x-m.x),0],[0,Math.sign(player.y-m.y)]]
@@ -1133,7 +1220,8 @@ function monsterTick(){
           if(canMonsterMove(grid,caveKey,m,m.x+ddx,m.y+ddy,targetHere)){ dx=ddx; dy=ddy; break; }
         }
       }
-      if(dx===0 && dy===0 && gameRnd()<0.7){
+      const wanderChance = m.type==='sprinter' ? 1.0 : 0.7;
+      if(dx===0 && dy===0 && gameRnd()<wanderChance){
         const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
         for(let i=dirs.length-1;i>0;i--){ const j=Math.floor(gameRnd()*(i+1)); [dirs[i],dirs[j]]=[dirs[j],dirs[i]]; }
         for(const [ddx,ddy] of dirs){
@@ -1142,8 +1230,13 @@ function monsterTick(){
       }
       if(dx!==0||dy!==0){
         const nx=m.x+dx, ny=m.y+dy;
-        m.from={x:m.x,y:m.y}; m.to={x:nx,y:ny}; m.x=nx; m.y=ny; m.t=0; m.moving=true;
-        if(targetHere && nx===player.x && ny===player.y && !player.dead){ damagePlayer('Ett monster tog dig!'); }
+        if(targetHere && nx===player.x && ny===player.y && !player.dead){
+          damagePlayer('Ett monster tog dig!');
+          spawnParticles(player.x,player.y,'#e05a4e',6);
+          m.bob += 3;
+        } else {
+          m.from={x:m.x,y:m.y}; m.to={x:nx,y:ny}; m.x=nx; m.y=ny; m.t=0; m.moving=true;
+        }
       }
     });
   });
@@ -1195,9 +1288,10 @@ function familiarAttack(){
     if(dist<=2 && dist<bestDist){ bestDist=dist; best=m; }
   });
   if(best){
-    best.alive=false;
+    best.hp = (best.hp||1) - 1;
     spawnParticles(best.x,best.y,'#8fe0ff',10);
     playSfx('zap');
+    if(best.hp<=0) best.alive=false;
   }
 }
 function spawnParticles(x,y,color,n){
@@ -1244,12 +1338,19 @@ function update(dt){
   if(running){
     monsterTimer += dt;
     if(monsterTimer>MONSTER_INTERVAL){ monsterTimer=0; monsterTick(); }
+    if(!player.dead && zapCharges < zapCap){
+      zapRegenTimer += dt;
+      if(zapRegenTimer > ZAP_REGEN_MS){
+        zapRegenTimer=0; zapCharges++; updateHud();
+      }
+    }
   }
 
   particles.forEach(p=>{ p.x+=p.vx*dt/1000; p.y+=p.vy*dt/1000; p.life-=dt/600; });
   particles = particles.filter(p=>p.life>0);
 
   revealAround(player.px, player.py);
+  updateDynamicHelp();
 
   if(running && player.hasFamiliar && !player.dead){
     player.familiarAngle += dt*0.0035;
@@ -1317,7 +1418,8 @@ function render(){
   curMonsters().forEach(m=>{
     if(!m.alive) return;
     if(Math.hypot(m.px-player.px, m.py-player.py) > LIGHT_RADIUS) return;
-    drawMonster(c,m, ox+m.px*TS, oy+m.py*TS);
+    const isAdjacent = Math.abs(Math.round(m.x)-player.x)+Math.abs(Math.round(m.y)-player.y)===1;
+    drawMonster(c,m, ox+m.px*TS, oy+m.py*TS, isAdjacent);
   });
   if(player) drawPlayer(c, ox+player.px*TS, oy+player.py*TS);
 
@@ -1548,27 +1650,46 @@ function drawPlayerFallback(c,px,py){
   R(-4,-8,1,3,'#8fc7f0');
   c.restore();
 }
-function drawMonster(c,m,px,py){
+function drawMonster(c,m,px,py,isAdjacent){
   c.save(); c.translate(px+TS/2, py+TS/2);
-  const bob = Math.round(Math.sin(m.bob)*3);
+  if(isAdjacent){
+    const pulse = 0.35+Math.sin(performance.now()*0.008)*0.25;
+    c.strokeStyle='rgba(224,90,78,'+pulse+')';
+    c.lineWidth=3;
+    c.beginPath(); c.arc(0,0,TS*0.42,0,7); c.stroke();
+  }
+  const bobSpeed = m.type==='sprinter' ? m.bob*1.8 : m.bob;
+  const bob = Math.round(Math.sin(bobSpeed)*3);
   c.translate(0,bob);
-  const color = m.type==='chaser' ? '#e05a4e' : '#a855f7';
+  const colors = {chaser:'#e05a4e', wanderer:'#a855f7', brute:'#5a5560', sprinter:'#f2a34d'};
+  const color = colors[m.type] || '#a855f7';
+  const sizeMul = m.type==='brute' ? 1.18 : 1;
   c.save(); c.globalAlpha=0.3; c.fillStyle='#000';
-  c.fillRect(-TS*0.2,TS*0.26,TS*0.4,TS*0.07); c.restore();
+  c.fillRect(-TS*0.2*sizeMul,TS*0.26,TS*0.4*sizeMul,TS*0.07); c.restore();
   c.fillStyle=color;
   c.beginPath();
-  c.arc(0,-TS*0.04,TS*0.22,Math.PI,0);
-  c.lineTo(TS*0.22,TS*0.2);
+  c.arc(0,-TS*0.04,TS*0.22*sizeMul,Math.PI,0);
+  c.lineTo(TS*0.22*sizeMul,TS*0.2);
   for(let i=0;i<4;i++){
-    const wx = TS*0.22 - i*(TS*0.44/3);
-    c.lineTo(wx - TS*0.44/6, i%2===0?TS*0.28:TS*0.16);
+    const wx = TS*0.22*sizeMul - i*(TS*0.44*sizeMul/3);
+    c.lineTo(wx - TS*0.44*sizeMul/6, i%2===0?TS*0.28:TS*0.16);
   }
-  c.lineTo(-TS*0.22,TS*0.2);
+  c.lineTo(-TS*0.22*sizeMul,TS*0.2);
   c.closePath(); c.fill();
+  if(m.type==='brute'){
+    c.strokeStyle='#2a2830'; c.lineWidth=2;
+    c.beginPath(); c.arc(0,-TS*0.04,TS*0.22*sizeMul,Math.PI,0); c.stroke();
+  }
   c.fillStyle='#fff';
   c.fillRect(-TS*0.11,-TS*0.09,7,7); c.fillRect(TS*0.04,-TS*0.09,7,7);
   c.fillStyle='#1a1420';
   c.fillRect(-TS*0.08,-TS*0.06,3,3); c.fillRect(TS*0.07,-TS*0.06,3,3);
+  if(m.maxHp>1){
+    for(let i=0;i<m.maxHp;i++){
+      c.fillStyle = i<m.hp ? '#ffdf6b' : 'rgba(255,255,255,0.25)';
+      c.beginPath(); c.arc(-6+i*8,-TS*0.42,2.5,0,7); c.fill();
+    }
+  }
   c.restore();
 }
 </script>
